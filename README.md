@@ -1,18 +1,41 @@
-## Giung Gim
-[Instagram](https://www.instagram.com/kimmiki._/)
-### idk what I have to do..
+# 🏫 Campus Teammate Matcher (교내 팀원 매칭 플랫폼)
 
-* [Open-source Software](https://github.com/users/qwasqwe0916/projects/1)
-<!--
-**qwasqwe0916/qwasqwe0916** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+## 1. 프로젝트 개요 (Project Overview)
+본 프로젝트는 대학 구성원(재학생)을 대상으로 팀 프로젝트, 공모전, 스터디를 함께 진행할 팀원을 효율적으로 모집하고 지원할 수 있는 교내 전용 매칭 플랫폼을 구축하는 것을 목표로 한다.  
+교내 이메일 인증을 적용하여 신뢰성을 확보하고, 각 사용자의 보유 기술 스택과 GitHub 프로필을 데이터베이스화하여 팀원을 탐색할 수 있도록 지원한다.
 
-Here are some ideas to get you started:
+---
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
--->
+## 2. 시스템 주요 기능 (Key Features)
+
+### (1) 회원 관리 및 교내 구성원 인증
+* 교내 전용 이메일(`@*.ac.kr` 등)로 발송된 인증번호를 통한 재학생 신분 검증
+* 사용자 기본 정보, GitHub 프로필 URL, 보유 기술 스택 관리
+
+### (2) 통합 게시판 시스템
+* 공모전, 스터디, 팀 프로젝트 등의 카테고리로 통합 관리
+* 게시글 작성 시 프로젝트에 필요한 필수/선택 기술 스택 태그 설정
+
+### (3) 프로필 및 기술 스택 조회
+* 작성자 및 댓글 참여자의 프로필 클릭 시, 해당 사용자의 기술 스택 및 GitHub 연동 정보 노출
+
+### (4) [확장 기능] 지원 관리 시스템 (Application System)
+* 모집 글에 대한 팀원 지원 신청 기능
+* 작성자의 마이페이지 내 지원자 수락/거절 상태(`Status`) 관리
+
+---
+
+## 3. 단계별 개발 로드맵 (Development Roadmap)
+
+* **[Phase 0: 설계 및 요구사항 정의]**
+  * ERD(개체-관계 도식) 설계
+  * 정규화(1NF ~ 3NF) 수행 및 개체 간 관계, 제약조건 확정
+* **[Phase 1: 핵심 MVP 기능 구현]**
+  * 이메일 인증 기반 회원가입/로그인 구현
+  * 기본 게시글 CRUD(작성, 조회, 수정, 삭제) 및 카테고리 분류 구현
+* **[Phase 2: DB 다대다 연동 및 기술 스택 기능]**
+  * 사용자-기술스택, 게시글-기술스택 중간 테이블 연동
+  * 프로필 내 GitHub 링크 및 기술 스택 조회 기능 적용
+* **[Phase 3: 디테일 보완 및 발표 준비]**
+  * 모집 지원/수락 시스템 추가 및 통합 테스트
+  * 발표 자료 및 시연용 테스트 계정 준비
