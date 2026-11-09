@@ -176,5 +176,7 @@ erDiagram
 | 기술 스택·카테고리 삭제 | 기본값(RESTRICT) 유지 | 사용 중인 항목이 실수로 삭제되는 것을 방지 |
 | 상태값 표기 | ENUM 값은 영문 코드(`OPEN`, `PENDING` 등)로 저장하고 화면에서 한글로 표시 | 코드 비교 시 오타·인코딩 문제 방지 |
 | 지원 취소 | 별도 상태값 없이 해당 지원 행을 삭제 (대기 상태일 때만, 서버에서 검사) | R22. 상태값을 3개로 단순하게 유지 |
+| 지원자 기술 스택 표시 | `applications`에 기술 스택을 복사하지 않고, 지원자 ID(`applications.user_id`)로 `user_skills`·`skills`를 JOIN하여 조회 | R20. 데이터 중복 방지 및 프로필 변경 시 불일치 방지 |
+| 생성 시각 컬럼 | `users.created_at` 등 주요 테이블에 생성 시각을 `DEFAULT CURRENT_TIMESTAMP`로 자동 기록 | 기록·정렬·디버깅 용도, 추가 비용이 거의 없음 |
 | 비밀번호·인증번호 | MySQL에 저장하지 않음 | Supabase Auth가 관리 |
 | Supabase 연결 | `users.auth_uid`로만 연결하고, 다른 테이블은 `users.user_id`(INT)를 참조 | 외부 서비스 의존 범위 최소화 |
