@@ -115,11 +115,12 @@ CREATE TABLE users (
 
 ### 2단계: DB 설계 및 구축
 * 요구사항 정리 (`docs/requirements.md`)
-* ERD 설계 및 다이어그램 작성
-* 정규화(1NF ~ 3NF) 수행 및 개체 간 관계, 제약조건 확정 (`docs/erd.md`)
+* ERD 설계 및 다이어그램 작성 (`docs/erd.md`)
+* 정규화(1NF ~ 3NF) 수행 및 개체 간 관계, 제약조건 확정 (`docs/normalization.md`)
 * 테이블 생성 SQL 작성 (`db/schema.sql`)
-* 기본 데이터 작성 (`db/seed.sql`: 카테고리, 기술 스택 태그, 테스트 데이터)
+* 기본 데이터 작성 (`db/seed.sql`: 카테고리, 기술 스택 태그)
   * 기술 스택 태그의 구체적인 목록은 추후 확정한다.
+* 개발·테스트용 샘플 데이터 작성 (`db/sample.sql`)
 * **완료 기준:** `schema.sql`과 `seed.sql`이 오류 없이 실행되고 데이터가 조회된다.
 
 ### 3단계: 기능 단위 개발 (프론트엔드 + 백엔드)
