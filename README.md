@@ -147,7 +147,7 @@ CREATE TABLE users (
 3. 직접 화면에서 동작 확인
 4. 코드 점검: `/ponytail-review`로 불필요한 코드 확인
 5. 커밋 → push → PR 생성 후 `main`에 병합
-6. 날짜별 작업 기록 작성 (`YYYY_MM_DD.md`)
+6. 날짜별 작업 기록 작성 (`log/YYYY_MM_DD.md`)
 
 > 코드가 어느 정도 쌓인 시점(③ 이후)부터는 `/graphify .`로 프로젝트 구조 그래프를 생성하여 구조 파악 및 발표 자료에 활용한다.
 
