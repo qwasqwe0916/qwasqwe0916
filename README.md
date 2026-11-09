@@ -9,8 +9,8 @@
 ## 2. 시스템 주요 기능 (Key Features)
 
 ### (1) 회원 관리 및 교내 구성원 인증
-* 교내 전용 이메일(`@*.ac.kr` 등)로 발송된 인증번호를 통한 재학생 신분 검증 (**Supabase Auth** 이용)
-* 사용자 기본 정보, GitHub 프로필 URL, 보유 기술 스택 관리 (**MySQL** 저장)
+* 교내 전용 이메일(`@seoultech.ac.kr`)로 발송된 인증번호를 통한 재학생 신분 검증 (**Supabase Auth** 이용)
+* 사용자 기본 정보(이름, 학과), GitHub 프로필 URL, 보유 기술 스택 관리 (**MySQL** 저장)
 
 ### (2) 통합 게시판 시스템
 * 공모전, 스터디, 팀 프로젝트 등의 카테고리로 통합 관리
@@ -52,7 +52,7 @@
 ```
 * 브라우저는 MySQL에 직접 접근하지 않으며, 모든 데이터 요청은 백엔드 서버를 거친다.
 * 서버는 요청마다 JWT를 검증한 뒤 처리하며, 클라이언트가 보낸 사용자 ID 값은 신뢰하지 않는다.
-* 교내 이메일 도메인(`.ac.kr`) 검사는 화면과 서버 양쪽에서 수행한다.
+* 교내 이메일 도메인(`@seoultech.ac.kr`) 검사는 화면과 서버 양쪽에서 수행한다.
 
 ### (3) 기술 스택
 | 구분 | 사용 기술 |
@@ -69,7 +69,7 @@
 ### (1) 테이블 구성 (초안)
 | 테이블 | 주요 컬럼 | 비고 |
 |---|---|---|
-| `users` | user_id(PK), auth_uid(UNIQUE), email(UNIQUE), name, github_url, created_at | `auth_uid`로 Supabase 사용자와 연결 |
+| `users` | user_id(PK), auth_uid(UNIQUE), email(UNIQUE), name, department, github_url, created_at | `auth_uid`로 Supabase 사용자와 연결 |
 | `skills` | skill_id(PK), name(UNIQUE) | 기술 스택 목록 |
 | `user_skills` | user_id(FK), skill_id(FK) | 사용자-기술스택 다대다 중간 테이블, PK(user_id, skill_id) |
 | `categories` | category_id(PK), name | 공모전 / 스터디 / 팀 프로젝트 |
@@ -85,6 +85,7 @@ CREATE TABLE users (
   auth_uid    CHAR(36)     NOT NULL UNIQUE,  -- Supabase 사용자 ID (UUID)
   email       VARCHAR(255) NOT NULL UNIQUE,
   name        VARCHAR(50)  NOT NULL,
+  department  VARCHAR(50),
   github_url  VARCHAR(255),
   created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -132,7 +133,7 @@ CREATE TABLE users (
 
 ### 4단계: 통합 테스트 및 발표 준비
 * 예외 상황 점검
-  * 교내 이메일(`.ac.kr`)이 아닌 경우 가입 차단 (화면·서버 모두)
+  * 교내 이메일(`@seoultech.ac.kr`)이 아닌 경우 가입 차단 (화면·서버 모두)
   * 토큰 없이 보호된 API 호출 시 401 응답
   * 타인의 게시글 수정·삭제 및 타인 글의 지원자 수락/거절 차단
   * 동일 게시글 중복 지원 차단
@@ -146,7 +147,7 @@ CREATE TABLE users (
 3. 직접 화면에서 동작 확인
 4. 코드 점검: `/ponytail-review`로 불필요한 코드 확인
 5. 커밋 → push → PR 생성 후 `main`에 병합
-6. 날짜별 작업 기록 작성 (`YYYY_MM_DD.md`)
+6. 날짜별 작업 기록 작성 (`log/YYYY_MM_DD.md`)
 
 > 코드가 어느 정도 쌓인 시점(③ 이후)부터는 `/graphify .`로 프로젝트 구조 그래프를 생성하여 구조 파악 및 발표 자료에 활용한다.
 
