@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { pool } from './db.js';
+import { authenticate } from './middleware/auth.js';
+import meRouter from './routes/me.js';
 
 const app = express();
 app.use(cors({ origin: 'http://localhost:5173' }));
@@ -15,6 +17,16 @@ app.get('/api/health', async (req, res) => {
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
+});
+
+// 모든 API 요청에서 로그인 토큰 확인
+app.use('/api', authenticate);
+app.use('/api/me', meRouter);
+
+// 처리되지 않은 오류
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ message: '서버 오류가 발생했습니다.' });
 });
 
 const port = process.env.PORT || 3000;
