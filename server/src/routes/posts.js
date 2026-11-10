@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireUser } from '../middleware/auth.js';
-import { getPostSkills, getUserSkills, validateSkillIds } from '../skills.js';
+import { getPostSkills, validateSkillIds } from '../skills.js';
+import { getPublicProfile } from '../profiles.js';
 
 const router = Router();
 const STATUSES = ['OPEN', 'CLOSED'];
@@ -91,7 +92,7 @@ async function savePost({ postId, userId, value, skills }) {
   }
 }
 
-async function findPost(postId) {
+export async function findPost(postId) {
   const [rows] = await pool.query(`${SELECT_POST} WHERE p.post_id = ?`, [postId]);
   return rows[0] ?? null;
 }
@@ -173,27 +174,12 @@ router.get('/:id', async (req, res) => {
   res.json(await loadPost(post.post_id, req.user));
 });
 
-// 게시글 작성자 프로필 (R15). 익명 글이면 학과(와 이후 추가될 기술 스택)만 공개한다
+// 게시글 작성자 프로필 (R15). 익명 글이면 학과와 기술 스택만 공개한다
 router.get('/:id/author', async (req, res) => {
   const post = await findPost(req.params.id);
   if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
-
-  const skills = (await getUserSkills([post.user_id]))[post.user_id];
-  if (post.is_anonymous) {
-    return res.json({ anonymous: true, name: '익명', department: post.author_department, skills });
-  }
-  const [rows] = await pool.query('SELECT user_id, name, department, github_url FROM users WHERE user_id = ?', [
-    post.user_id,
-  ]);
-  const user = rows[0];
-  res.json({
-    anonymous: false,
-    userId: user.user_id,
-    name: user.name,
-    department: user.department,
-    githubUrl: user.github_url,
-    skills,
-  });
+  const profile = await getPublicProfile(post.user_id, { anonymous: Boolean(post.is_anonymous) });
+  res.json({ postId: post.post_id, ...profile });
 });
 
 // 게시글 작성 (R5, R7)
