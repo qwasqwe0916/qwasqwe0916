@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireAuth, requireUser } from '../middleware/auth.js';
+import { supabaseAdmin } from '../supabase.js';
 
 const ALLOWED_EMAIL_DOMAIN = '@seoultech.ac.kr';
 const router = Router();
@@ -69,6 +70,31 @@ router.put('/', requireUser, async (req, res) => {
   );
   const [rows] = await pool.query('SELECT * FROM users WHERE user_id = ?', [req.user.user_id]);
   res.json(toProfile(rows[0]));
+});
+
+// 회원 탈퇴 (R23). MySQL 회원 정보를 지우면 글, 댓글, 지원 내역, 기술 스택이 함께 삭제된다(CASCADE).
+// Supabase 로그인 계정 삭제가 실패하면 MySQL 삭제도 되돌린다.
+router.delete('/', requireUser, async (req, res) => {
+  if (!supabaseAdmin) {
+    return res.status(500).json({ message: '서버에 탈퇴 처리용 키가 설정되지 않았습니다.' });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query('DELETE FROM users WHERE user_id = ?', [req.user.user_id]);
+
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(req.authUser.id);
+    if (error) throw error;
+
+    await conn.commit();
+    res.status(204).end();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 });
 
 export default router;

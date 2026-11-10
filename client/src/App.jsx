@@ -3,6 +3,7 @@ import { useAuth } from './auth/AuthContext';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ProfileFormPage from './pages/ProfileFormPage';
+import ProfilePage from './pages/ProfilePage';
 
 function Header() {
   const { session, profile, signOut } = useAuth();
@@ -14,8 +15,8 @@ function Header() {
       <nav>
         {session ? (
           <>
-            {profile && <Link to="/profile/edit">{profile.name}</Link>}
-            <button type="button" className="link" onClick={signOut}>
+            {profile && <Link to="/profile">프로필</Link>}
+            <button type="button" className="link" onClick={() => signOut()}>
               로그아웃
             </button>
           </>
@@ -54,12 +55,12 @@ export default function App() {
         <Route
           path="/profile/setup"
           element={
-            !session ? <Navigate to="/login" replace /> : profile ? <Navigate to="/" replace /> : <ProfileFormPage mode="create" />
+            !session ? <Navigate to="/login" replace /> : profile ? <Navigate to="/" replace /> : <ProfileFormPage />
           }
         />
         <Route
-          path="/profile/edit"
-          element={session ? <ProfileFormPage mode="edit" /> : <Navigate to="/login" replace />}
+          path="/profile"
+          element={session ? <ProfilePage /> : <Navigate to="/login" replace />}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
