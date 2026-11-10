@@ -6,6 +6,9 @@
 -- ⚠️ 주의: 다시 실행하면 기존 테이블과 데이터가 모두 삭제되고 새로 만들어진다.
 -- =============================================================
 
+-- 한글이 깨지지 않도록 접속 문자셋을 utf8mb4로 지정
+SET NAMES utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS campus_matcher
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;

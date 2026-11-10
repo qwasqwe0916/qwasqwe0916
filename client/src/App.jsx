@@ -1,9 +1,11 @@
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
-import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ProfileFormPage from './pages/ProfileFormPage';
 import ProfilePage from './pages/ProfilePage';
+import PostListPage from './pages/PostListPage';
+import PostDetailPage from './pages/PostDetailPage';
+import PostFormPage from './pages/PostFormPage';
 
 function Header() {
   const { session, profile, signOut } = useAuth();
@@ -50,7 +52,10 @@ export default function App() {
   } else {
     content = (
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<PostListPage />} />
+        <Route path="/posts/new" element={session ? <PostFormPage /> : <Navigate to="/login" replace />} />
+        <Route path="/posts/:id" element={<PostDetailPage />} />
+        <Route path="/posts/:id/edit" element={session ? <PostFormPage key="edit" /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginPage />} />
         <Route
           path="/profile/setup"

@@ -2,11 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { validateProfileInput } from '../lib/profile';
+import { formatDate } from '../lib/format';
 import { useAuth } from '../auth/AuthContext';
-
-function formatDate(value) {
-  return new Date(value).toLocaleDateString('ko-KR');
-}
 
 // 내 프로필: 보기 상태 → [수정하기] → 수정 상태 → [저장하기] / [취소]
 export default function ProfilePage() {
