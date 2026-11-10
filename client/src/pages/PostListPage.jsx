@@ -90,7 +90,8 @@ export default function PostListPage() {
                 </div>
                 <strong className="post-title">{post.title}</strong>
                 <span className="muted small">
-                  {post.author.name} · 모집 {post.recruitCount}명 · 마감 {formatDeadline(post.deadline)} · {formatDate(post.createdAt)}
+                  {post.author.name}
+                  {post.isAnonymous && post.author.department && ` (${post.author.department})`} · 모집 {post.recruitCount}명 · 마감 {formatDeadline(post.deadline)} · {formatDate(post.createdAt)}
                 </span>
               </Link>
             </li>

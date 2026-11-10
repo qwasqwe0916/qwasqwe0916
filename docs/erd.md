@@ -1,7 +1,7 @@
 # 🗂️ ERD 설계 (Entity-Relationship Design)
 
 * 작성일: 2026-11-09
-* 요구사항 번호(R1 ~ R23)는 [`requirements.md`](requirements.md)를 따른다.
+* 요구사항 번호(R1 ~ R26)는 [`requirements.md`](requirements.md)를 따른다.
 * 데이터베이스: MySQL (`campus_matcher`, `utf8mb4`)
 
 ---
@@ -51,6 +51,7 @@ erDiagram
         int recruit_count "1 이상"
         date deadline "NULL 허용"
         enum status "OPEN / CLOSED"
+        boolean is_anonymous "익명 여부"
         datetime created_at
         datetime updated_at
     }
@@ -64,6 +65,7 @@ erDiagram
         int post_id FK
         int user_id FK "작성자"
         text content
+        boolean is_anonymous "익명 여부"
         datetime created_at
     }
     applications {
@@ -137,6 +139,7 @@ erDiagram
 | recruit_count | INT | NOT NULL, CHECK (≥ 1) | 모집 인원 |
 | deadline | DATE | NULL | 모집 마감일 |
 | status | ENUM('OPEN', 'CLOSED') | NOT NULL, DEFAULT 'OPEN' | 모집중 / 모집완료 |
+| is_anonymous | BOOLEAN | NOT NULL, DEFAULT FALSE | TRUE: 작성자를 "익명"으로 표시 |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
 | updated_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | |
 
@@ -154,6 +157,7 @@ erDiagram
 | post_id | INT | NOT NULL, FK → posts (ON DELETE CASCADE) | |
 | user_id | INT | NOT NULL, FK → users (ON DELETE CASCADE) | 작성자 |
 | content | TEXT | NOT NULL | |
+| is_anonymous | BOOLEAN | NOT NULL, DEFAULT FALSE | TRUE: 작성자를 "익명"으로 표시 |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
 
 ### (8) `applications` — 지원 내역 (M:N)
@@ -181,5 +185,6 @@ erDiagram
 | 기술 스택 목록 | `skills`는 `seed.sql`로 미리 등록한 항목만 사용하며, 사용자가 추가하는 기능은 제공하지 않음. 분야별 분류 없음 | 표기 불일치 방지, MVP 범위 유지 |
 | 기술 스택 저장 방식 | 기술 이름은 `skills`에만 한 번 저장하고, `user_skills`·`post_skills`는 `skill_id`(번호)로만 참조 | 이름 변경 시 한 곳만 수정, 중복 저장 방지 |
 | 생성 시각 컬럼 | 주요 테이블에 생성 시각(`created_at`, `applied_at`)을 `DEFAULT CURRENT_TIMESTAMP`로 자동 기록 | 기록·정렬·디버깅 용도, 추가 비용이 거의 없음 |
+| 익명 표시 | 실명을 따로 저장하지 않고 `is_anonymous` 값으로 표시만 바꿈. 익명일 때 서버는 응답에서 작성자 이름·ID를 제외하고 학과만 보냄 | R24, R25. 실명이 화면이나 응답 데이터로 노출되지 않게 함 |
 | 비밀번호·인증번호 | MySQL에 저장하지 않음 | Supabase Auth가 관리 |
 | Supabase 연결 | `users.auth_uid`로만 연결하고, 다른 테이블은 `users.user_id`(INT)를 참조 | 외부 서비스 의존 범위 최소화 |

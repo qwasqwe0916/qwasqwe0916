@@ -27,13 +27,14 @@ WHERE (u.email = 'writer@seoultech.ac.kr'     AND s.name IN ('Java', 'Spring', '
    OR (u.email = 'applicant2@seoultech.ac.kr' AND s.name IN ('Figma', 'HTML/CSS'));
 
 -- 게시글 3개
-INSERT INTO posts (user_id, category_id, title, content, recruit_count, deadline, status) VALUES
+-- 2번 글은 익명 게시글
+INSERT INTO posts (user_id, category_id, title, content, recruit_count, deadline, status, is_anonymous) VALUES
   (1, (SELECT category_id FROM categories WHERE name = '공모전'),
-   '교내 SW 공모전 웹 서비스 팀원 모집', '프론트엔드 1명, 디자이너 1명을 모집합니다.', 2, '2026-11-30', 'OPEN'),
+   '교내 SW 공모전 웹 서비스 팀원 모집', '프론트엔드 1명, 디자이너 1명을 모집합니다.', 2, '2026-11-30', 'OPEN', FALSE),
   (1, (SELECT category_id FROM categories WHERE name = '스터디'),
-   'DB 기말고사 대비 SQL 스터디', '매주 화요일 저녁에 SQL 문제를 함께 풉니다.', 4, NULL, 'OPEN'),
+   'DB 기말고사 대비 SQL 스터디', '매주 화요일 저녁에 SQL 문제를 함께 풉니다.', 4, NULL, 'OPEN', TRUE),
   (1, (SELECT category_id FROM categories WHERE name = '팀 프로젝트'),
-   '캡스톤 디자인 백엔드 팀원 모집 (마감)', '모집이 완료되었습니다.', 1, '2026-11-01', 'CLOSED');
+   '캡스톤 디자인 백엔드 팀원 모집 (마감)', '모집이 완료되었습니다.', 1, '2026-11-01', 'CLOSED', FALSE);
 
 -- 게시글 요구 기술 (is_required: TRUE 필수, FALSE 선택)
 INSERT INTO post_skills (post_id, skill_id, is_required)

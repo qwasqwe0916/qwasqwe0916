@@ -361,3 +361,23 @@ button.tab.active {
 .owner-actions > * {
   flex: 1;
 }
+
+.profile-title {
+  margin-top: 16px;
+}
+
+.checkbox .small {
+  margin-left: 2px;
+}
+
+.dev-login {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+  font-size: 0.9rem;
+}
+
+.dev-login summary {
+  cursor: pointer;
+  color: var(--muted);
+}
