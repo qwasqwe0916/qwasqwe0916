@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { validateProfileInput } from '../lib/profile';
 import { useAuth } from '../auth/AuthContext';
+import { useOptions } from '../lib/useOptions';
+import SkillPicker from '../components/SkillPicker';
 
 // 첫 로그인 시 프로필 등록
 export default function ProfileFormPage() {
@@ -12,6 +14,8 @@ export default function ProfileFormPage() {
   const [name, setName] = useState('');
   const [department, setDepartment] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
+  const [skillIds, setSkillIds] = useState([]);
+  const skills = useOptions('/api/skills');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -23,7 +27,7 @@ export default function ProfileFormPage() {
 
     setBusy(true);
     try {
-      setProfile(await api.post('/api/me', { name, department, githubUrl }));
+      setProfile(await api.post('/api/me', { name, department, githubUrl, skillIds }));
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -65,6 +69,10 @@ export default function ProfileFormPage() {
             placeholder="https://github.com/아이디"
           />
         </label>
+        <div className="field">
+          보유 기술 스택
+          <SkillPicker skills={skills} selectedIds={skillIds} onChange={setSkillIds} />
+        </div>
         <button type="submit" disabled={busy}>
           {busy ? '저장 중…' : '등록하기'}
         </button>

@@ -381,3 +381,101 @@ button.tab.active {
   cursor: pointer;
   color: var(--muted);
 }
+
+/* ---------- 기술 스택 ---------- */
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+button.chip {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+button.chip.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-text);
+}
+
+button.chip.selected.optional {
+  background: var(--notice-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.chip-legend {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.chip-legend.required {
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+.chip-legend.optional {
+  background: var(--notice-bg);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.hint {
+  margin: 0 0 8px;
+  font-weight: 400;
+}
+
+.skill-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.skill-tag {
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: #ddf4ff;
+  color: #0550ae;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.skill-tag.optional {
+  background: transparent;
+  border: 1px dashed #54aeff;
+  font-weight: 400;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.skill-filter {
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+
+.skill-filter summary {
+  cursor: pointer;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.form label.checkbox {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

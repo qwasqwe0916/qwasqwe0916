@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireUser } from '../middleware/auth.js';
+import { getPostSkills, getUserSkills, validateSkillIds } from '../skills.js';
 
 const router = Router();
 const STATUSES = ['OPEN', 'CLOSED'];
@@ -21,7 +22,7 @@ function toAuthor(row) {
 }
 
 // viewer: 요청한 회원(req.user). isMine으로 "내 글인지"를 알려준다
-function toPost(row, viewer, { withContent = true } = {}) {
+function toPost(row, viewer, skills, { withContent = true } = {}) {
   return {
     postId: row.post_id,
     title: row.title,
@@ -35,7 +36,59 @@ function toPost(row, viewer, { withContent = true } = {}) {
     updatedAt: row.updated_at,
     category: { categoryId: row.category_id, name: row.category_name },
     author: toAuthor(row),
+    skills,
   };
+}
+
+// 게시글 하나를 기술 태그와 함께 응답 형태로 만든다
+async function loadPost(postId, viewer) {
+  const row = await findPost(postId);
+  const skills = await getPostSkills([row.post_id]);
+  return toPost(row, viewer, skills[row.post_id]);
+}
+
+// 게시글 요구 기술 검사: [{ skillId, isRequired }] (R6)
+async function validatePostSkills(input) {
+  if (input === undefined) return { value: [] };
+  if (!Array.isArray(input)) return { error: '기술 태그 형식이 올바르지 않습니다.' };
+  const ids = await validateSkillIds(input.map((item) => item?.skillId));
+  if (ids.error) return { error: ids.error };
+  if (ids.value.length !== input.length) return { error: '같은 기술을 두 번 선택할 수 없습니다.' };
+  return { value: input.map((item) => ({ skillId: Number(item.skillId), isRequired: item.isRequired !== false })) };
+}
+
+// 게시글 저장(작성·수정)과 기술 태그 교체를 한 트랜잭션으로 처리한다
+async function savePost({ postId, userId, value, skills }) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    let id = postId;
+    if (id) {
+      await conn.query(
+        'UPDATE posts SET category_id = ?, title = ?, content = ?, recruit_count = ?, deadline = ?, is_anonymous = ? WHERE post_id = ?',
+        [value.categoryId, value.title, value.content, value.recruitCount, value.deadline, value.isAnonymous, id]
+      );
+      await conn.query('DELETE FROM post_skills WHERE post_id = ?', [id]);
+    } else {
+      const [result] = await conn.query(
+        'INSERT INTO posts (user_id, category_id, title, content, recruit_count, deadline, is_anonymous) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [userId, value.categoryId, value.title, value.content, value.recruitCount, value.deadline, value.isAnonymous]
+      );
+      id = result.insertId;
+    }
+    if (skills.length > 0) {
+      await conn.query('INSERT INTO post_skills (post_id, skill_id, is_required) VALUES ?', [
+        skills.map((skill) => [id, skill.skillId, skill.isRequired]),
+      ]);
+    }
+    await conn.commit();
+    return id;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
 async function findPost(postId) {
@@ -98,16 +151,26 @@ router.get('/', async (req, res) => {
     conditions.push('p.status = ?');
     params.push(req.query.status);
   }
+  // 기술 필터: 선택한 기술 중 하나라도 요구하는 글 (예: ?skills=3,10)
+  const skillIds = String(req.query.skills ?? '')
+    .split(',')
+    .map(Number)
+    .filter((id) => Number.isInteger(id) && id > 0);
+  if (skillIds.length > 0) {
+    conditions.push('EXISTS (SELECT 1 FROM post_skills ps WHERE ps.post_id = p.post_id AND ps.skill_id IN (?))');
+    params.push(skillIds);
+  }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const [rows] = await pool.query(`${SELECT_POST} ${where} ORDER BY p.created_at DESC, p.post_id DESC`, params);
-  res.json(rows.map((row) => toPost(row, req.user, { withContent: false })));
+  const skills = await getPostSkills(rows.map((row) => row.post_id));
+  res.json(rows.map((row) => toPost(row, req.user, skills[row.post_id], { withContent: false })));
 });
 
 // 게시글 상세 (R11)
 router.get('/:id', async (req, res) => {
   const post = await findPost(req.params.id);
   if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
-  res.json(toPost(post, req.user));
+  res.json(await loadPost(post.post_id, req.user));
 });
 
 // 게시글 작성자 프로필 (R15). 익명 글이면 학과(와 이후 추가될 기술 스택)만 공개한다
@@ -115,8 +178,9 @@ router.get('/:id/author', async (req, res) => {
   const post = await findPost(req.params.id);
   if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
 
+  const skills = (await getUserSkills([post.user_id]))[post.user_id];
   if (post.is_anonymous) {
-    return res.json({ anonymous: true, name: '익명', department: post.author_department });
+    return res.json({ anonymous: true, name: '익명', department: post.author_department, skills });
   }
   const [rows] = await pool.query('SELECT user_id, name, department, github_url FROM users WHERE user_id = ?', [
     post.user_id,
@@ -128,6 +192,7 @@ router.get('/:id/author', async (req, res) => {
     name: user.name,
     department: user.department,
     githubUrl: user.github_url,
+    skills,
   });
 });
 
@@ -136,12 +201,11 @@ router.post('/', requireUser, async (req, res) => {
   const { error, value } = validatePost(req.body ?? {});
   if (error) return res.status(400).json({ message: error });
   if (!(await categoryExists(value.categoryId))) return res.status(400).json({ message: '존재하지 않는 카테고리입니다.' });
+  const skills = await validatePostSkills(req.body?.skills);
+  if (skills.error) return res.status(400).json({ message: skills.error });
 
-  const [result] = await pool.query(
-    'INSERT INTO posts (user_id, category_id, title, content, recruit_count, deadline, is_anonymous) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [req.user.user_id, value.categoryId, value.title, value.content, value.recruitCount, value.deadline, value.isAnonymous]
-  );
-  res.status(201).json(toPost(await findPost(result.insertId), req.user));
+  const postId = await savePost({ userId: req.user.user_id, value, skills: skills.value });
+  res.status(201).json(await loadPost(postId, req.user));
 });
 
 // 게시글 수정 (R9: 작성자만)
@@ -151,12 +215,11 @@ router.put('/:id', requireUser, async (req, res) => {
   const { error, value } = validatePost(req.body ?? {});
   if (error) return res.status(400).json({ message: error });
   if (!(await categoryExists(value.categoryId))) return res.status(400).json({ message: '존재하지 않는 카테고리입니다.' });
+  const skills = await validatePostSkills(req.body?.skills);
+  if (skills.error) return res.status(400).json({ message: skills.error });
 
-  await pool.query(
-    'UPDATE posts SET category_id = ?, title = ?, content = ?, recruit_count = ?, deadline = ?, is_anonymous = ? WHERE post_id = ?',
-    [value.categoryId, value.title, value.content, value.recruitCount, value.deadline, value.isAnonymous, post.post_id]
-  );
-  res.json(toPost(await findPost(post.post_id), req.user));
+  await savePost({ postId: post.post_id, value, skills: skills.value });
+  res.json(await loadPost(post.post_id, req.user));
 });
 
 // 모집 상태 변경 (R8: 모집중 ↔ 모집완료, 작성자만)
@@ -167,7 +230,7 @@ router.patch('/:id/status', requireUser, async (req, res) => {
   if (!STATUSES.includes(status)) return res.status(400).json({ message: '올바르지 않은 모집 상태입니다.' });
 
   await pool.query('UPDATE posts SET status = ? WHERE post_id = ?', [status, post.post_id]);
-  res.json(toPost(await findPost(post.post_id), req.user));
+  res.json(await loadPost(post.post_id, req.user));
 });
 
 // 게시글 삭제 (R9, R10: 기술 태그, 댓글, 지원 내역은 CASCADE로 함께 삭제)

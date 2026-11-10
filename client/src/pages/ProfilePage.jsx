@@ -4,6 +4,9 @@ import { api } from '../lib/api';
 import { validateProfileInput } from '../lib/profile';
 import { formatDate } from '../lib/format';
 import { useAuth } from '../auth/AuthContext';
+import { useOptions } from '../lib/useOptions';
+import SkillPicker from '../components/SkillPicker';
+import SkillTags from '../components/SkillTags';
 
 // 내 프로필: 보기 상태 → [수정하기] → 수정 상태 → [저장하기] / [취소]
 export default function ProfilePage() {
@@ -11,7 +14,8 @@ export default function ProfilePage() {
   const navigate = useNavigate();
 
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', department: '', githubUrl: '' });
+  const [form, setForm] = useState({ name: '', department: '', githubUrl: '', skillIds: [] });
+  const skills = useOptions('/api/skills');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -20,6 +24,7 @@ export default function ProfilePage() {
       name: profile.name,
       department: profile.department ?? '',
       githubUrl: profile.githubUrl ?? '',
+      skillIds: profile.skills.map((skill) => skill.skillId),
     });
     setError('');
     setEditing(true);
@@ -96,6 +101,14 @@ export default function ProfilePage() {
               placeholder="https://github.com/아이디"
             />
           </label>
+          <div className="field">
+            보유 기술 스택
+            <SkillPicker
+              skills={skills}
+              selectedIds={form.skillIds}
+              onChange={(skillIds) => setForm({ ...form, skillIds })}
+            />
+          </div>
           <div className="actions">
             <button type="submit" disabled={busy}>
               {busy ? '저장 중…' : '저장하기'}
@@ -123,6 +136,10 @@ export default function ProfilePage() {
               ) : (
                 <span className="muted">미입력</span>
               )}
+            </dd>
+            <dt>기술 스택</dt>
+            <dd>
+              <SkillTags skills={profile.skills} emptyText="미입력" />
             </dd>
             <dt>가입일</dt>
             <dd>{formatDate(profile.createdAt)}</dd>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { STATUS_LABELS, formatDate, formatDeadline } from '../lib/format';
+import SkillTags from '../components/SkillTags';
 
 // 게시글 상세. 작성자에게만 모집 상태 변경, 수정, 삭제 버튼이 보인다.
 export default function PostDetailPage() {
@@ -83,6 +84,14 @@ export default function PostDetailPage() {
         <dd>{post.recruitCount}명</dd>
         <dt>마감일</dt>
         <dd>{formatDeadline(post.deadline)}</dd>
+        <dt>필수 기술</dt>
+        <dd>
+          <SkillTags skills={post.skills.filter((skill) => skill.isRequired)} />
+        </dd>
+        <dt>선택 기술</dt>
+        <dd>
+          <SkillTags skills={post.skills.filter((skill) => !skill.isRequired)} />
+        </dd>
       </dl>
 
       <div className="content">{post.content}</div>
