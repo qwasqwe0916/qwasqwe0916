@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import { useCategories } from '../lib/useCategories';
+import { useOptions } from '../lib/useOptions';
+import SkillPicker from '../components/SkillPicker';
+import SkillTags from '../components/SkillTags';
 import { STATUS_LABELS, formatDate, formatDeadline } from '../lib/format';
 import { useAuth } from '../auth/AuthContext';
 
 // 메인: 모집 게시글 목록 (카테고리 탭, 모집중만 보기)
 export default function PostListPage() {
   const { profile } = useAuth();
-  const categories = useCategories();
+  const categories = useOptions('/api/categories');
+  const skillOptions = useOptions('/api/skills');
   const [searchParams, setSearchParams] = useSearchParams();
   const category = searchParams.get('category') ?? '';
   const openOnly = searchParams.get('status') === 'OPEN';
+  const selectedSkills = (searchParams.get('skills') ?? '').split(',').filter(Boolean).map(Number);
 
   const [result, setResult] = useState({ key: null, posts: [], error: '' });
   const key = searchParams.toString();
@@ -73,6 +77,16 @@ export default function PostListPage() {
         </label>
       </div>
 
+      <details className="skill-filter" open={selectedSkills.length > 0}>
+        <summary>기술로 찾기{selectedSkills.length > 0 && ` (${selectedSkills.length}개 선택)`}</summary>
+        <SkillPicker
+          skills={skillOptions}
+          selectedIds={selectedSkills}
+          onChange={(ids) => updateFilter('skills', ids.join(','))}
+        />
+        <p className="muted small">선택한 기술 중 하나라도 필요한 글을 보여줍니다.</p>
+      </details>
+
       {loading ? (
         <p className="muted">불러오는 중…</p>
       ) : result.error ? (
@@ -89,6 +103,7 @@ export default function PostListPage() {
                   <span className={`badge status-${post.status}`}>{STATUS_LABELS[post.status]}</span>
                 </div>
                 <strong className="post-title">{post.title}</strong>
+                {post.skills.length > 0 && <SkillTags skills={post.skills} />}
                 <span className="muted small">
                   {post.author.name}
                   {post.isAnonymous && post.author.department && ` (${post.author.department})`} · 모집 {post.recruitCount}명 · 마감 {formatDeadline(post.deadline)} · {formatDate(post.createdAt)}

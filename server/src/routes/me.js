@@ -2,11 +2,18 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireAuth, requireUser } from '../middleware/auth.js';
 import { supabaseAdmin } from '../supabase.js';
+import { getUserSkills, replaceUserSkills, validateSkillIds } from '../skills.js';
 
 const ALLOWED_EMAIL_DOMAIN = '@seoultech.ac.kr';
 const router = Router();
 
-function toProfile(user) {
+async function loadProfile(userId) {
+  const [rows] = await pool.query('SELECT * FROM users WHERE user_id = ?', [userId]);
+  const skills = await getUserSkills([userId]);
+  return toProfile(rows[0], skills[userId]);
+}
+
+function toProfile(user, skills) {
   return {
     userId: user.user_id,
     email: user.email,
@@ -14,6 +21,7 @@ function toProfile(user) {
     department: user.department,
     githubUrl: user.github_url,
     createdAt: user.created_at,
+    skills,
   };
 }
 
@@ -33,12 +41,43 @@ function validateProfile(body) {
 }
 
 // 내 정보 조회. 프로필이 없으면 404 (화면에서 프로필 설정으로 이동)
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   if (!req.user) {
     return res.status(404).json({ code: 'PROFILE_REQUIRED', email: req.authUser.email });
   }
-  res.json(toProfile(req.user));
+  res.json(await loadProfile(req.user.user_id));
 });
+
+// 프로필과 보유 기술을 한 트랜잭션으로 저장한다 (R2, R3)
+async function saveProfile({ userId, authUid, email, value, skillIds }) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    let id = userId;
+    if (id) {
+      await conn.query('UPDATE users SET name = ?, department = ?, github_url = ? WHERE user_id = ?', [
+        value.name,
+        value.department,
+        value.githubUrl,
+        id,
+      ]);
+    } else {
+      const [result] = await conn.query(
+        'INSERT INTO users (auth_uid, email, name, department, github_url) VALUES (?, ?, ?, ?, ?)',
+        [authUid, email, value.name, value.department, value.githubUrl]
+      );
+      id = result.insertId;
+    }
+    if (skillIds !== undefined) await replaceUserSkills(conn, id, skillIds);
+    await conn.commit();
+    return id;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
 
 // 첫 로그인 시 프로필 생성 (R1, R2)
 router.post('/', requireAuth, async (req, res) => {
@@ -50,26 +89,22 @@ router.post('/', requireAuth, async (req, res) => {
 
   const { error, value } = validateProfile(req.body ?? {});
   if (error) return res.status(400).json({ message: error });
+  const skills = await validateSkillIds(req.body?.skillIds);
+  if (skills.error) return res.status(400).json({ message: skills.error });
 
-  const [result] = await pool.query(
-    'INSERT INTO users (auth_uid, email, name, department, github_url) VALUES (?, ?, ?, ?, ?)',
-    [req.authUser.id, email, value.name, value.department, value.githubUrl]
-  );
-  const [rows] = await pool.query('SELECT * FROM users WHERE user_id = ?', [result.insertId]);
-  res.status(201).json(toProfile(rows[0]));
+  const userId = await saveProfile({ authUid: req.authUser.id, email, value, skillIds: skills.value });
+  res.status(201).json(await loadProfile(userId));
 });
 
 // 내 프로필 수정 (R4: 본인만 수정 가능 → 토큰의 사용자만 수정)
 router.put('/', requireUser, async (req, res) => {
   const { error, value } = validateProfile(req.body ?? {});
   if (error) return res.status(400).json({ message: error });
+  const skills = await validateSkillIds(req.body?.skillIds);
+  if (skills.error) return res.status(400).json({ message: skills.error });
 
-  await pool.query(
-    'UPDATE users SET name = ?, department = ?, github_url = ? WHERE user_id = ?',
-    [value.name, value.department, value.githubUrl, req.user.user_id]
-  );
-  const [rows] = await pool.query('SELECT * FROM users WHERE user_id = ?', [req.user.user_id]);
-  res.json(toProfile(rows[0]));
+  await saveProfile({ userId: req.user.user_id, value, skillIds: skills.value });
+  res.json(await loadProfile(req.user.user_id));
 });
 
 // 회원 탈퇴 (R23). MySQL 회원 정보를 지우면 글, 댓글, 지원 내역, 기술 스택이 함께 삭제된다(CASCADE).

@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import { useCategories } from '../lib/useCategories';
+import { useOptions } from '../lib/useOptions';
+import PostSkillPicker from '../components/PostSkillPicker';
 
-const EMPTY = { categoryId: '', title: '', content: '', recruitCount: 1, deadline: '', isAnonymous: false };
+const EMPTY = { categoryId: '', title: '', content: '', recruitCount: 1, deadline: '', isAnonymous: false, skills: [] };
 
 // 게시글 작성(/posts/new) · 수정(/posts/:id/edit)
 export default function PostFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
-  const categories = useCategories();
+  const categories = useOptions('/api/categories');
+  const skillOptions = useOptions('/api/skills');
   const navigate = useNavigate();
 
   const [form, setForm] = useState(EMPTY);
@@ -35,6 +37,7 @@ export default function PostFormPage() {
             recruitCount: post.recruitCount,
             deadline: post.deadline ?? '',
             isAnonymous: post.isAnonymous,
+            skills: post.skills.map(({ skillId, isRequired }) => ({ skillId, isRequired })),
           });
         }
         setLoadedId(id);
@@ -127,6 +130,10 @@ export default function PostFormPage() {
             required
           />
         </label>
+        <div className="field">
+          필요한 기술 스택
+          <PostSkillPicker skills={skillOptions} value={form.skills} onChange={(skills) => setForm({ ...form, skills })} />
+        </div>
         <label className="checkbox">
           <input
             type="checkbox"

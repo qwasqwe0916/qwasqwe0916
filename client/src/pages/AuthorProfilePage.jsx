@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import SkillTags from '../components/SkillTags';
 
 // 게시글 작성자 프로필 (R15). 익명 글이면 학과(와 이후 추가될 기술 스택)만 보인다.
 export default function AuthorProfilePage() {
@@ -56,7 +57,9 @@ export default function AuthorProfilePage() {
               </>
             )}
             <dt>기술 스택</dt>
-            <dd className="muted">다음 단계에서 추가됩니다</dd>
+            <dd>
+              <SkillTags skills={author.skills} emptyText="미입력" />
+            </dd>
           </dl>
         </>
       )}
