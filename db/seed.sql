@@ -4,6 +4,9 @@
 -- 실행: mysql -u root -p < db/seed.sql   (schema.sql 실행 후)
 -- =============================================================
 
+-- 한글이 깨지지 않도록 접속 문자셋을 utf8mb4로 지정
+SET NAMES utf8mb4;
+
 USE campus_matcher;
 
 -- 게시글 카테고리

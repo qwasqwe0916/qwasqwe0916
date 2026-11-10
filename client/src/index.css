@@ -193,3 +193,171 @@ button.danger {
   margin: 0;
   word-break: break-all;
 }
+
+/* ---------- 게시판 ---------- */
+.small {
+  font-size: 0.85rem;
+}
+
+a.button {
+  display: inline-block;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--primary-text);
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
+a.button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+select,
+textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+  background: var(--surface);
+}
+
+textarea {
+  resize: vertical;
+}
+
+.form-card {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.title-row h1 {
+  margin: 0;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+button.tab {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+}
+
+button.tab.active {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.post-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.post-list li {
+  border-bottom: 1px solid var(--border);
+}
+
+.post-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 4px;
+  color: var(--text);
+}
+
+.post-item:hover {
+  background: var(--bg);
+  text-decoration: none;
+}
+
+.post-title {
+  font-size: 1.05rem;
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+}
+
+.detail-badges {
+  margin: 16px 0 8px;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge.status-OPEN {
+  background: #dafbe1;
+  border-color: #aceebb;
+  color: #1a7f37;
+}
+
+.badge.status-CLOSED {
+  color: var(--muted);
+}
+
+.content {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.owner-actions {
+  margin-top: 24px;
+}
+
+.owner-actions > * {
+  flex: 1;
+}
