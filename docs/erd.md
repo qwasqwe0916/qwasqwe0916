@@ -1,7 +1,7 @@
 # 🗂️ ERD 설계 (Entity-Relationship Design)
 
 * 작성일: 2026-11-09
-* 요구사항 번호(R1 ~ R22)는 [`requirements.md`](requirements.md)를 따른다.
+* 요구사항 번호(R1 ~ R23)는 [`requirements.md`](requirements.md)를 따른다.
 * 데이터베이스: MySQL (`campus_matcher`, `utf8mb4`)
 
 ---
@@ -123,14 +123,14 @@ erDiagram
 ### (4) `user_skills` — 사용자 보유 기술 (M:N)
 | 컬럼 | 타입 | 제약조건 | 설명 |
 |---|---|---|---|
-| user_id | INT | PK, FK → users | |
+| user_id | INT | PK, FK → users (ON DELETE CASCADE) | |
 | skill_id | INT | PK, FK → skills | |
 
 ### (5) `posts` — 모집 게시글
 | 컬럼 | 타입 | 제약조건 | 설명 |
 |---|---|---|---|
 | post_id | INT | PK, AUTO_INCREMENT | |
-| user_id | INT | NOT NULL, FK → users | 작성자 |
+| user_id | INT | NOT NULL, FK → users (ON DELETE CASCADE) | 작성자 |
 | category_id | INT | NOT NULL, FK → categories | |
 | title | VARCHAR(100) | NOT NULL | 제목 |
 | content | TEXT | NOT NULL | 내용 |
@@ -152,7 +152,7 @@ erDiagram
 |---|---|---|---|
 | comment_id | INT | PK, AUTO_INCREMENT | |
 | post_id | INT | NOT NULL, FK → posts (ON DELETE CASCADE) | |
-| user_id | INT | NOT NULL, FK → users | 작성자 |
+| user_id | INT | NOT NULL, FK → users (ON DELETE CASCADE) | 작성자 |
 | content | TEXT | NOT NULL | |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
 
@@ -161,7 +161,7 @@ erDiagram
 |---|---|---|---|
 | application_id | INT | PK, AUTO_INCREMENT | |
 | post_id | INT | NOT NULL, FK → posts (ON DELETE CASCADE) | |
-| user_id | INT | NOT NULL, FK → users | 지원자 |
+| user_id | INT | NOT NULL, FK → users (ON DELETE CASCADE) | 지원자 |
 | status | ENUM('PENDING', 'ACCEPTED', 'REJECTED') | NOT NULL, DEFAULT 'PENDING' | 대기 / 수락 / 거절 |
 | message | VARCHAR(300) | NULL | 지원 메시지 |
 | applied_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
@@ -174,7 +174,7 @@ erDiagram
 | 항목 | 결정 | 근거 |
 |---|---|---|
 | 게시글 삭제 시 하위 데이터 | `post_skills`, `comments`, `applications`에 `ON DELETE CASCADE` 적용 | R10. 게시글 없이 남을 이유가 없는 데이터 |
-| 회원 삭제 | 기능을 제공하지 않으므로 `users` 참조 FK는 기본값(RESTRICT) 유지 | 제외 범위(회원 탈퇴) |
+| 회원 삭제 (탈퇴) | `users`를 참조하는 FK(`user_skills`, `posts`, `comments`, `applications`)에 `ON DELETE CASCADE` 적용. 탈퇴한 회원의 글이 삭제되면 그 글의 하위 데이터도 연쇄 삭제됨 | R23. 탈퇴 시 개인 데이터를 남기지 않음 |
 | 기술 스택·카테고리 삭제 | 기본값(RESTRICT) 유지 | 사용 중인 항목이 실수로 삭제되는 것을 방지 |
 | 상태값 표기 | ENUM 값은 영문 코드(`OPEN`, `PENDING` 등)로 저장하고 화면에서 한글로 표시 | 코드 비교 시 오타·인코딩 문제 방지 |
 | 지원 취소 | 별도 상태값 없이 해당 지원 행을 삭제 (대기 상태일 때만, 서버에서 검사) | R22. 상태값을 3개로 단순하게 유지 |

@@ -161,3 +161,35 @@ button.link {
   margin-top: 16px;
   color: var(--error);
 }
+
+button.danger {
+  background: transparent;
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actions > button {
+  flex: 1;
+}
+
+.info {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px 16px;
+  margin: 20px 0 8px;
+}
+
+.info dt {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.info dd {
+  margin: 0;
+  word-break: break-all;
+}

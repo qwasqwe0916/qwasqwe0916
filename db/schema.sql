@@ -65,7 +65,7 @@ CREATE TABLE user_skills (
   user_id  INT NOT NULL,
   skill_id INT NOT NULL,
   PRIMARY KEY (user_id, skill_id),
-  CONSTRAINT fk_user_skills_user  FOREIGN KEY (user_id)  REFERENCES users (user_id),
+  CONSTRAINT fk_user_skills_user  FOREIGN KEY (user_id)  REFERENCES users (user_id) ON DELETE CASCADE,
   CONSTRAINT fk_user_skills_skill FOREIGN KEY (skill_id) REFERENCES skills (skill_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -84,7 +84,7 @@ CREATE TABLE posts (
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (post_id),
-  CONSTRAINT fk_posts_user     FOREIGN KEY (user_id)     REFERENCES users (user_id),
+  CONSTRAINT fk_posts_user     FOREIGN KEY (user_id)     REFERENCES users (user_id) ON DELETE CASCADE,
   CONSTRAINT fk_posts_category FOREIGN KEY (category_id) REFERENCES categories (category_id),
   CONSTRAINT chk_posts_recruit_count CHECK (recruit_count >= 1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -112,7 +112,7 @@ CREATE TABLE comments (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (comment_id),
   CONSTRAINT fk_comments_post FOREIGN KEY (post_id) REFERENCES posts (post_id) ON DELETE CASCADE,
-  CONSTRAINT fk_comments_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+  CONSTRAINT fk_comments_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------
@@ -128,5 +128,5 @@ CREATE TABLE applications (
   PRIMARY KEY (application_id),
   CONSTRAINT uq_applications_post_user UNIQUE (post_id, user_id),
   CONSTRAINT fk_applications_post FOREIGN KEY (post_id) REFERENCES posts (post_id) ON DELETE CASCADE,
-  CONSTRAINT fk_applications_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+  CONSTRAINT fk_applications_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
