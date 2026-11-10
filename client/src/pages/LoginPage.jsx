@@ -38,6 +38,20 @@ export default function LoginPage() {
     setMessage(`${trimmed}로 인증번호를 보냈습니다. 메일함(스팸함 포함)을 확인해 주세요.`);
   }
 
+  // 개발 모드 전용: Supabase에서 비밀번호로 만든 테스트 계정 로그인
+  async function testLogin(e) {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    setError('');
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: String(data.get('email')).trim().toLowerCase(),
+      password: String(data.get('password')),
+    });
+    setBusy(false);
+    if (error) setError(`테스트 계정 로그인에 실패했습니다. (${error.message})`);
+  }
+
   async function verifyCode(e) {
     e.preventDefault();
     setError('');
@@ -110,6 +124,19 @@ export default function LoginPage() {
 
       {message && <p className="notice">{message}</p>}
       {error && <p className="error">{error}</p>}
+
+      {import.meta.env.DEV && (
+        <details className="dev-login">
+          <summary>개발용: 테스트 계정으로 로그인</summary>
+          <form onSubmit={testLogin} className="form">
+            <input name="email" type="email" placeholder="테스트 계정 이메일" required />
+            <input name="password" type="password" placeholder="비밀번호" required />
+            <button type="submit" className="secondary" disabled={busy}>
+              테스트 계정 로그인
+            </button>
+          </form>
+        </details>
+      )}
     </div>
   );
 }

@@ -2,15 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useCategories } from '../lib/useCategories';
-import { useAuth } from '../auth/AuthContext';
 
-const EMPTY = { categoryId: '', title: '', content: '', recruitCount: 1, deadline: '' };
+const EMPTY = { categoryId: '', title: '', content: '', recruitCount: 1, deadline: '', isAnonymous: false };
 
 // 게시글 작성(/posts/new) · 수정(/posts/:id/edit)
 export default function PostFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
-  const { profile } = useAuth();
   const categories = useCategories();
   const navigate = useNavigate();
 
@@ -27,7 +25,7 @@ export default function PostFormPage() {
       .get(`/api/posts/${id}`)
       .then((post) => {
         if (cancelled) return;
-        if (post.author.userId !== profile?.userId) {
+        if (!post.isMine) {
           setError('작성자만 수정할 수 있습니다.');
         } else {
           setForm({
@@ -36,6 +34,7 @@ export default function PostFormPage() {
             content: post.content,
             recruitCount: post.recruitCount,
             deadline: post.deadline ?? '',
+            isAnonymous: post.isAnonymous,
           });
         }
         setLoadedId(id);
@@ -48,7 +47,7 @@ export default function PostFormPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, isEdit, profile?.userId]);
+  }, [id, isEdit]);
 
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
@@ -127,6 +126,15 @@ export default function PostFormPage() {
             placeholder="프로젝트 소개, 모집 역할, 진행 방식 등을 적어 주세요."
             required
           />
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={form.isAnonymous}
+            onChange={(e) => setForm({ ...form, isAnonymous: e.target.checked })}
+          />
+          익명으로 올리기
+          <span className="muted small">(이름 대신 "익명"으로 표시되며, 학과는 공개됩니다)</span>
         </label>
         <div className="actions">
           <button type="submit" disabled={busy}>

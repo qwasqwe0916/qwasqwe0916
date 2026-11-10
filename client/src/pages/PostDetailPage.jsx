@@ -2,12 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { STATUS_LABELS, formatDate, formatDeadline } from '../lib/format';
-import { useAuth } from '../auth/AuthContext';
 
 // 게시글 상세. 작성자에게만 모집 상태 변경, 수정, 삭제 버튼이 보인다.
 export default function PostDetailPage() {
   const { id } = useParams();
-  const { profile } = useAuth();
   const navigate = useNavigate();
 
   const [result, setResult] = useState({ id: null, post: null, error: '' });
@@ -36,7 +34,7 @@ export default function PostDetailPage() {
   }
 
   const { post } = result;
-  const isOwner = profile?.userId === post.author.userId;
+  const isOwner = post.isMine;
 
   async function toggleStatus() {
     const next = post.status === 'OPEN' ? 'CLOSED' : 'OPEN';
@@ -74,8 +72,9 @@ export default function PostDetailPage() {
       </div>
       <h1>{post.title}</h1>
       <p className="muted small">
-        {post.author.name}
-        {post.author.department && ` (${post.author.department})`} · 작성 {formatDate(post.createdAt)}
+        <Link to={`/posts/${id}/author`}>{post.author.name}</Link>
+        {post.author.department && ` (${post.author.department})`}
+        {post.isAnonymous && post.isMine && ' · 내가 쓴 익명 글'} · 작성 {formatDate(post.createdAt)}
         {post.updatedAt !== post.createdAt && ` · 수정 ${formatDate(post.updatedAt)}`}
       </p>
 
