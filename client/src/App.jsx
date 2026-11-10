@@ -56,7 +56,8 @@ export default function App() {
         <Route path="/" element={<PostListPage />} />
         <Route path="/posts/new" element={session ? <PostFormPage /> : <Navigate to="/login" replace />} />
         <Route path="/posts/:id" element={<PostDetailPage />} />
-        <Route path="/posts/:id/author" element={<AuthorProfilePage />} />
+        <Route path="/posts/:id/author" element={<AuthorProfilePage kind="posts" />} />
+        <Route path="/comments/:id/author" element={<AuthorProfilePage kind="comments" />} />
         <Route path="/posts/:id/edit" element={session ? <PostFormPage key="edit" /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginPage />} />
         <Route

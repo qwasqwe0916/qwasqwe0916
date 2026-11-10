@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { STATUS_LABELS, formatDate, formatDeadline } from '../lib/format';
 import SkillTags from '../components/SkillTags';
+import Comments from '../components/Comments';
 
 // 게시글 상세. 작성자에게만 모집 상태 변경, 수정, 삭제 버튼이 보인다.
 export default function PostDetailPage() {
@@ -110,6 +111,8 @@ export default function PostDetailPage() {
         </div>
       )}
       {actionError && <p className="error">{actionError}</p>}
+
+      <Comments postId={id} forceAnonymous={post.isAnonymous && post.isMine} />
     </div>
   );
 }
