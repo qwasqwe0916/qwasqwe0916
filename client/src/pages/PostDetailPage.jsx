@@ -4,6 +4,8 @@ import { api } from '../lib/api';
 import { STATUS_LABELS, formatDate, formatDeadline } from '../lib/format';
 import SkillTags from '../components/SkillTags';
 import Comments from '../components/Comments';
+import ApplyPanel from '../components/ApplyPanel';
+import ApplicantManager from '../components/ApplicantManager';
 
 // 게시글 상세. 작성자에게만 모집 상태 변경, 수정, 삭제 버튼이 보인다.
 export default function PostDetailPage() {
@@ -13,6 +15,8 @@ export default function PostDetailPage() {
   const [result, setResult] = useState({ id: null, post: null, error: '' });
   const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [version, setVersion] = useState(0); // 지원 상태가 바뀌면 다시 불러오기 위한 값
+  const reload = () => setVersion((v) => v + 1);
 
   useEffect(() => {
     let cancelled = false;
@@ -23,7 +27,7 @@ export default function PostDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, version]);
 
   if (result.id !== id) return <p className="muted center">불러오는 중…</p>;
   if (result.error) {
@@ -82,9 +86,14 @@ export default function PostDetailPage() {
 
       <dl className="info">
         <dt>모집 인원</dt>
-        <dd>{post.recruitCount}명</dd>
+        <dd>
+          {post.recruitCount}명 <span className="muted small">(수락 {post.acceptedCount}명 · 지원 {post.applicationCount}명)</span>
+        </dd>
         <dt>마감일</dt>
-        <dd>{formatDeadline(post.deadline)}</dd>
+        <dd>
+          {formatDeadline(post.deadline)}
+          {post.isExpired && <span className="badge expired">마감일 지남</span>}
+        </dd>
         <dt>필수 기술</dt>
         <dd>
           <SkillTags skills={post.skills.filter((skill) => skill.isRequired)} />
@@ -111,6 +120,8 @@ export default function PostDetailPage() {
         </div>
       )}
       {actionError && <p className="error">{actionError}</p>}
+
+      {isOwner ? <ApplicantManager post={post} onChanged={reload} /> : <ApplyPanel post={post} onChanged={reload} />}
 
       <Comments postId={id} forceAnonymous={post.isAnonymous && post.isMine} />
     </div>

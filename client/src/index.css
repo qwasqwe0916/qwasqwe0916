@@ -537,3 +537,90 @@ button.link.comment-delete {
   justify-content: space-between;
   gap: 8px;
 }
+
+/* ---------- 지원 ---------- */
+.panel {
+  margin-top: 28px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.apply-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.apply-status p {
+  margin: 0;
+}
+
+.badge.app-PENDING {
+  background: #fff8c5;
+  border-color: #eac54f;
+  color: #7d4e00;
+}
+
+.badge.app-ACCEPTED {
+  background: #dafbe1;
+  border-color: #aceebb;
+  color: #1a7f37;
+}
+
+.badge.app-REJECTED {
+  background: #ffebe9;
+  border-color: #ffcecb;
+  color: var(--error);
+}
+
+.badge.expired {
+  margin-left: 6px;
+  color: var(--error);
+}
+
+.applicant-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.applicant-list li {
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+
+.applicant-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.applicant-skills {
+  margin: 8px 0;
+}
+
+.applicant-message {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  white-space: pre-wrap;
+}
+
+.applicant-list .actions > button {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+}
+
+.mypage-tabs {
+  margin: 12px 0 8px;
+}

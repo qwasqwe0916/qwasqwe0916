@@ -10,3 +10,5 @@ export function formatDeadline(deadline) {
   const [y, m, d] = deadline.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('ko-KR');
 }
+
+export const APPLICATION_STATUS_LABELS = { PENDING: '대기', ACCEPTED: '수락', REJECTED: '거절' };
