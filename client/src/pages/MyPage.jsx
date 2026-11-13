@@ -50,6 +50,7 @@ export default function MyPage() {
                     <span className="badge">{post.category}</span>
                     <span className={`badge status-${post.status}`}>{STATUS_LABELS[post.status]}</span>
                     {post.isAnonymous && <span className="badge">익명</span>}
+                    {post.teamFormed && <span className="badge app-ACCEPTED">팀 구성됨</span>}
                     {post.applications.pending > 0 && (
                       <span className="badge app-PENDING">새 지원 {post.applications.pending}</span>
                     )}
@@ -75,12 +76,13 @@ export default function MyPage() {
                   <span className="badge">{app.post.category}</span>
                   <span className={`badge status-${app.post.status}`}>{STATUS_LABELS[app.post.status]}</span>
                   <span className={`badge app-${app.status}`}>내 지원: {APPLICATION_STATUS_LABELS[app.status]}</span>
+                  {app.status === 'ACCEPTED' && app.teamFormed && <span className="badge app-ACCEPTED">팀 구성됨</span>}
                 </div>
                 <strong className="post-title">{app.post.title}</strong>
                 <span className="muted small">
                   작성자 {app.author.name}
                   {app.author.department && ` (${app.author.department})`}
-                  {app.author.revealed && ' · 수락되어 실명 공개'} · 지원일 {formatDate(app.appliedAt)}
+                  {app.author.revealed && ' · 팀 구성으로 실명 공개'} · 지원일 {formatDate(app.appliedAt)}
                 </span>
               </Link>
             </li>

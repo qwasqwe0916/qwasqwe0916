@@ -16,6 +16,7 @@ CREATE DATABASE IF NOT EXISTS campus_matcher
 USE campus_matcher;
 
 -- 참조하는 테이블부터 역순으로 삭제
+DROP TABLE IF EXISTS team_messages;
 DROP TABLE IF EXISTS applications;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS post_skills;
@@ -85,6 +86,8 @@ CREATE TABLE posts (
   deadline      DATE         NULL     COMMENT '모집 마감일',
   status        ENUM('OPEN', 'CLOSED') NOT NULL DEFAULT 'OPEN' COMMENT '모집중 / 모집완료',
   is_anonymous  BOOLEAN      NOT NULL DEFAULT FALSE COMMENT 'TRUE: 작성자 이름을 익명으로 표시',
+  contact_link  VARCHAR(255) NULL     COMMENT '팀 연락 링크 (카카오톡 오픈채팅, 디스코드만 허용, 팀원에게만 공개)',
+  team_formed_at DATETIME    NULL     COMMENT '팀 구성 시각 (NULL이면 아직 팀 미구성)',
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (post_id),
@@ -134,4 +137,19 @@ CREATE TABLE applications (
   CONSTRAINT uq_applications_post_user UNIQUE (post_id, user_id),
   CONSTRAINT fk_applications_post FOREIGN KEY (post_id) REFERENCES posts (post_id) ON DELETE CASCADE,
   CONSTRAINT fk_applications_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------
+-- (9) team_messages: 팀 게시판 (팀 구성 후 작성자와 수락된 팀원만 이용)
+-- 팀원은 따로 저장하지 않고 "글 작성자 + 그 글에 수락된 지원자"로 판단한다
+-- -------------------------------------------------------------
+CREATE TABLE team_messages (
+  message_id INT      NOT NULL AUTO_INCREMENT,
+  post_id    INT      NOT NULL,
+  user_id    INT      NOT NULL COMMENT '작성자',
+  content    TEXT     NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (message_id),
+  CONSTRAINT fk_team_messages_post FOREIGN KEY (post_id) REFERENCES posts (post_id) ON DELETE CASCADE,
+  CONSTRAINT fk_team_messages_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -56,7 +56,10 @@ export default function PostDetailPage() {
   }
 
   async function remove() {
-    if (!window.confirm('게시글을 삭제하시겠습니까?\n\n댓글과 지원 내역도 함께 삭제되며 되돌릴 수 없습니다.')) return;
+    const warning = post.teamFormed
+      ? '게시글을 삭제하시겠습니까?\n\n이미 팀이 구성된 글입니다. 팀 페이지와 팀 게시판, 댓글, 지원 내역이 모두 삭제되며 되돌릴 수 없습니다.'
+      : '게시글을 삭제하시겠습니까?\n\n댓글과 지원 내역도 함께 삭제되며 되돌릴 수 없습니다.';
+    if (!window.confirm(warning)) return;
     setBusy(true);
     try {
       await api.delete(`/api/posts/${id}`);
@@ -108,9 +111,11 @@ export default function PostDetailPage() {
 
       {isOwner && (
         <div className="actions owner-actions">
-          <button type="button" className="secondary" onClick={toggleStatus} disabled={busy}>
-            {post.status === 'OPEN' ? '모집완료로 변경' : '모집중으로 변경'}
-          </button>
+          {!post.teamFormed && (
+            <button type="button" className="secondary" onClick={toggleStatus} disabled={busy}>
+              {post.status === 'OPEN' ? '모집완료로 변경' : '모집중으로 변경'}
+            </button>
+          )}
           <Link to={`/posts/${id}/edit`} className="button secondary">
             수정
           </Link>
@@ -120,6 +125,12 @@ export default function PostDetailPage() {
         </div>
       )}
       {actionError && <p className="error">{actionError}</p>}
+
+      {post.teamFormed && (isOwner || post.myApplication?.status === 'ACCEPTED') && (
+        <Link to={`/posts/${id}/team`} className="button team-link">
+          팀 페이지로 가기
+        </Link>
+      )}
 
       {isOwner ? <ApplicantManager post={post} onChanged={reload} /> : <ApplyPanel post={post} onChanged={reload} />}
 

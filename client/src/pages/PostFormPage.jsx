@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { useOptions } from '../lib/useOptions';
 import PostSkillPicker from '../components/PostSkillPicker';
 
-const EMPTY = { categoryId: '', title: '', content: '', recruitCount: 1, deadline: '', isAnonymous: false, skills: [] };
+const EMPTY = { categoryId: '', title: '', content: '', recruitCount: 1, deadline: '', isAnonymous: false, skills: [], contactLink: '' };
 
 // 게시글 작성(/posts/new) · 수정(/posts/:id/edit)
 export default function PostFormPage() {
@@ -37,6 +37,7 @@ export default function PostFormPage() {
             recruitCount: post.recruitCount,
             deadline: post.deadline ?? '',
             isAnonymous: post.isAnonymous,
+            contactLink: post.contactLink ?? '',
             skills: post.skills.map(({ skillId, isRequired }) => ({ skillId, isRequired })),
           });
         }
@@ -134,6 +135,19 @@ export default function PostFormPage() {
           필요한 기술 스택
           <PostSkillPicker skills={skillOptions} value={form.skills} onChange={(skills) => setForm({ ...form, skills })} />
         </div>
+        <label>
+          팀 연락 링크 <span className="muted small">(선택)</span>
+          <input
+            value={form.contactLink}
+            onChange={update('contactLink')}
+            maxLength={255}
+            placeholder="https://open.kakao.com/o/... 또는 https://discord.gg/..."
+          />
+          <span className="muted small hint-text">
+            카카오톡 오픈채팅이나 디스코드 초대 링크를 넣어 두면, 팀이 구성된 뒤 팀원에게만 공개되어 팀원 간 연락이 훨씬
+            원활해집니다. 안전을 위해 이 두 가지 링크만 넣을 수 있습니다.
+          </span>
+        </label>
         <label className="checkbox">
           <input
             type="checkbox"

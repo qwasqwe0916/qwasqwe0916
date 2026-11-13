@@ -1,7 +1,7 @@
 # 🗂️ ERD 설계 (Entity-Relationship Design)
 
 * 작성일: 2026-11-09
-* 요구사항 번호(R1 ~ R26)는 [`requirements.md`](requirements.md)를 따른다.
+* 요구사항 번호(R1 ~ R29)는 [`requirements.md`](requirements.md)를 따른다.
 * 데이터베이스: MySQL (`campus_matcher`, `utf8mb4`)
 
 ---
@@ -20,6 +20,8 @@ erDiagram
     skills ||--o{ post_skills : "요구됨"
     posts ||--o{ applications : "지원받음"
     users ||--o{ applications : "지원"
+    posts ||--o{ team_messages : "팀 게시판"
+    users ||--o{ team_messages : "작성"
 
     users {
         int user_id PK
@@ -52,6 +54,8 @@ erDiagram
         date deadline "NULL 허용"
         enum status "OPEN / CLOSED"
         boolean is_anonymous "익명 여부"
+        varchar contact_link "팀 연락 링크, NULL 허용"
+        datetime team_formed_at "팀 구성 시각, NULL 허용"
         datetime created_at
         datetime updated_at
     }
@@ -140,6 +144,8 @@ erDiagram
 | deadline | DATE | NULL | 모집 마감일 |
 | status | ENUM('OPEN', 'CLOSED') | NOT NULL, DEFAULT 'OPEN' | 모집중 / 모집완료 |
 | is_anonymous | BOOLEAN | NOT NULL, DEFAULT FALSE | TRUE: 작성자를 "익명"으로 표시 |
+| contact_link | VARCHAR(255) | NULL | 팀 연락 링크 (카카오톡 오픈채팅·디스코드만, 팀원에게만 공개) |
+| team_formed_at | DATETIME | NULL | 팀 구성 시각 (NULL이면 미구성) |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
 | updated_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | |
 
@@ -171,6 +177,15 @@ erDiagram
 | applied_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
 | | | UNIQUE (post_id, user_id) | 중복 지원 방지 |
 
+### (9) `team_messages` — 팀 게시판
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|---|---|---|---|
+| message_id | INT | PK, AUTO_INCREMENT | |
+| post_id | INT | NOT NULL, FK → posts (ON DELETE CASCADE) | 어느 팀(게시글)의 게시판인지 |
+| user_id | INT | NOT NULL, FK → users (ON DELETE CASCADE) | 작성자 |
+| content | TEXT | NOT NULL | |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+
 ---
 
 ## 4. 설계 결정 사항
@@ -178,9 +193,11 @@ erDiagram
 | 항목 | 결정 | 근거 |
 |---|---|---|
 | 게시글 삭제 시 하위 데이터 | `post_skills`, `comments`, `applications`에 `ON DELETE CASCADE` 적용 | R10. 게시글 없이 남을 이유가 없는 데이터 |
-| 회원 삭제 (탈퇴) | `users`를 참조하는 FK(`user_skills`, `posts`, `comments`, `applications`)에 `ON DELETE CASCADE` 적용. 탈퇴한 회원의 글이 삭제되면 그 글의 하위 데이터도 연쇄 삭제됨 | R23. 탈퇴 시 개인 데이터를 남기지 않음 |
+| 회원 삭제 (탈퇴) | `users`를 참조하는 FK(`user_skills`, `posts`, `comments`, `applications`, `team_messages`)에 `ON DELETE CASCADE` 적용. 탈퇴한 회원의 글이 삭제되면 그 글의 하위 데이터도 연쇄 삭제됨 | R23. 탈퇴 시 개인 데이터를 남기지 않음 |
 | 기술 스택·카테고리 삭제 | 기본값(RESTRICT) 유지 | 사용 중인 항목이 실수로 삭제되는 것을 방지 |
 | 상태값 표기 | ENUM 값은 영문 코드(`OPEN`, `PENDING` 등)로 저장하고 화면에서 한글로 표시 | 코드 비교 시 오타·인코딩 문제 방지 |
+| 팀원 저장 방식 | 팀원 테이블을 따로 두지 않고 "글 작성자 + 그 글에 수락된 지원자"로 판단. 팀 구성 여부는 `posts.team_formed_at`으로 표시 | R27, R29. 같은 정보를 두 곳에 저장하지 않음 (팀 구성 후 지원 상태는 바꿀 수 없으므로 팀원 목록이 고정됨) |
+| 팀 게시판 분리 | 공개 댓글(`comments`)과 섞지 않고 `team_messages`로 분리 | 접근 권한(누구나 vs 팀원만)이 다른 데이터를 테이블 단위로 구분 |
 | 지원 취소 | 별도 상태값 없이 해당 지원 행을 삭제 (대기 상태일 때만, 서버에서 검사) | R22. 상태값을 3개로 단순하게 유지 |
 | 기술 스택 목록 | `skills`는 `seed.sql`로 미리 등록한 항목만 사용하며, 사용자가 추가하는 기능은 제공하지 않음. 분야별 분류 없음 | 표기 불일치 방지, MVP 범위 유지 |
 | 기술 스택 저장 방식 | 기술 이름은 `skills`에만 한 번 저장하고, `user_skills`·`post_skills`는 `skill_id`(번호)로만 참조 | 이름 변경 시 한 곳만 수정, 중복 저장 방지 |
