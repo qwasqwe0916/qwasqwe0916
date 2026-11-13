@@ -7,6 +7,7 @@ import PostListPage from './pages/PostListPage';
 import PostDetailPage from './pages/PostDetailPage';
 import PostFormPage from './pages/PostFormPage';
 import AuthorProfilePage from './pages/AuthorProfilePage';
+import MyPage from './pages/MyPage';
 
 function Header() {
   const { session, profile, signOut } = useAuth();
@@ -18,6 +19,7 @@ function Header() {
       <nav>
         {session ? (
           <>
+            {profile && <Link to="/mypage">마이페이지</Link>}
             {profile && <Link to="/profile">프로필</Link>}
             <button type="button" className="link" onClick={() => signOut()}>
               로그아웃
@@ -60,6 +62,7 @@ export default function App() {
         <Route path="/comments/:id/author" element={<AuthorProfilePage kind="comments" />} />
         <Route path="/posts/:id/edit" element={session ? <PostFormPage key="edit" /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginPage />} />
+        <Route path="/mypage" element={session ? <MyPage /> : <Navigate to="/login" replace />} />
         <Route
           path="/profile/setup"
           element={

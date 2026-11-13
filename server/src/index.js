@@ -8,6 +8,7 @@ import categoriesRouter from './routes/categories.js';
 import postsRouter from './routes/posts.js';
 import skillsRouter from './routes/skills.js';
 import commentsRouter from './routes/comments.js';
+import applicationsRouter from './routes/applications.js';
 
 const app = express();
 app.use(cors({ origin: 'http://localhost:5173' }));
@@ -30,6 +31,7 @@ app.use('/api/categories', categoriesRouter);
 app.use('/api/posts', postsRouter);
 app.use('/api/skills', skillsRouter);
 app.use('/api', commentsRouter);
+app.use('/api', applicationsRouter);
 
 // 처리되지 않은 오류
 app.use((err, req, res, next) => {

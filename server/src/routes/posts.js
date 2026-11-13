@@ -16,36 +16,83 @@ const SELECT_POST = `
   JOIN categories c ON c.category_id = p.category_id
   JOIN users u      ON u.user_id = p.user_id`;
 
+// 서버 기준 오늘 날짜 'YYYY-MM-DD' (마감일 비교용)
+export function today() {
+  return new Date().toLocaleDateString('sv-SE');
+}
+
 // 익명 글은 작성자 이름과 ID를 응답에서 빼고 학과만 보낸다 (R24)
-function toAuthor(row) {
-  if (row.is_anonymous) return { anonymous: true, name: '익명', department: row.author_department };
-  return { anonymous: false, userId: row.user_id, name: row.author_name, department: row.author_department };
+// revealed: 수락된 지원자에게는 익명 글 작성자의 실명을 공개한다 (R26)
+function toAuthor(row, revealed = false) {
+  if (row.is_anonymous && !revealed) return { anonymous: true, name: '익명', department: row.author_department };
+  return {
+    anonymous: false,
+    ...(row.is_anonymous && { revealed: true }),
+    userId: row.user_id,
+    name: row.author_name,
+    department: row.author_department,
+  };
+}
+
+// 이 회원이 이 글에 수락된 지원자인지 (R26)
+export async function isAcceptedApplicant(postId, user) {
+  if (!user) return false;
+  const [rows] = await pool.query(
+    "SELECT 1 FROM applications WHERE post_id = ? AND user_id = ? AND status = 'ACCEPTED'",
+    [postId, user.user_id]
+  );
+  return rows.length > 0;
 }
 
 // viewer: 요청한 회원(req.user). isMine으로 "내 글인지"를 알려준다
-function toPost(row, viewer, skills, { withContent = true } = {}) {
+function toPost(row, viewer, skills, { withContent = true, revealed = false } = {}) {
   return {
     postId: row.post_id,
     title: row.title,
     ...(withContent && { content: row.content }),
     recruitCount: row.recruit_count,
     deadline: row.deadline,
+    isExpired: Boolean(row.deadline) && row.deadline < today(),
     status: row.status,
     isAnonymous: Boolean(row.is_anonymous),
     isMine: Boolean(viewer) && viewer.user_id === row.user_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     category: { categoryId: row.category_id, name: row.category_name },
-    author: toAuthor(row),
+    author: toAuthor(row, revealed),
     skills,
   };
 }
 
-// 게시글 하나를 기술 태그와 함께 응답 형태로 만든다
+// 게시글 하나를 기술 태그, 지원 현황, 내 지원 정보와 함께 응답 형태로 만든다
 async function loadPost(postId, viewer) {
   const row = await findPost(postId);
   const skills = await getPostSkills([row.post_id]);
-  return toPost(row, viewer, skills[row.post_id]);
+  const [[counts]] = await pool.query(
+    "SELECT COUNT(*) AS total, COALESCE(SUM(status = 'ACCEPTED'), 0) AS accepted FROM applications WHERE post_id = ?",
+    [row.post_id]
+  );
+  let myApplication = null;
+  if (viewer) {
+    const [mine] = await pool.query(
+      'SELECT application_id, status, message, applied_at FROM applications WHERE post_id = ? AND user_id = ?',
+      [row.post_id, viewer.user_id]
+    );
+    if (mine[0]) {
+      myApplication = {
+        applicationId: mine[0].application_id,
+        status: mine[0].status,
+        message: mine[0].message,
+        appliedAt: mine[0].applied_at,
+      };
+    }
+  }
+  return {
+    ...toPost(row, viewer, skills[row.post_id], { revealed: myApplication?.status === 'ACCEPTED' }),
+    applicationCount: Number(counts.total),
+    acceptedCount: Number(counts.accepted),
+    myApplication,
+  };
 }
 
 // 게시글 요구 기술 검사: [{ skillId, isRequired }] (R6)
@@ -178,7 +225,8 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/author', async (req, res) => {
   const post = await findPost(req.params.id);
   if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
-  const profile = await getPublicProfile(post.user_id, { anonymous: Boolean(post.is_anonymous) });
+  const revealed = await isAcceptedApplicant(post.post_id, req.user);
+  const profile = await getPublicProfile(post.user_id, { anonymous: Boolean(post.is_anonymous) && !revealed });
   res.json({ postId: post.post_id, ...profile });
 });
 
