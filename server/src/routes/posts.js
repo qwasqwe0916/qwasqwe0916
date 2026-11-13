@@ -9,7 +9,7 @@ const STATUSES = ['OPEN', 'CLOSED'];
 
 const SELECT_POST = `
   SELECT p.post_id, p.title, p.content, p.recruit_count, p.deadline, p.status, p.is_anonymous,
-         p.created_at, p.updated_at,
+         p.contact_link, p.team_formed_at, p.created_at, p.updated_at,
          c.category_id, c.name AS category_name,
          u.user_id, u.name AS author_name, u.department AS author_department
   FROM posts p
@@ -21,8 +21,46 @@ export function today() {
   return new Date().toLocaleDateString('sv-SE');
 }
 
+// 연락 링크는 카카오톡 오픈채팅과 디스코드 초대 링크만 허용한다 (R28)
+// 주소를 분해해 도메인이 정확히 일치하는지 검사한다 (open.kakao.com.evil.site 같은 위장 주소 차단)
+export function validateContactLink(input) {
+  const value = String(input ?? '').trim();
+  if (!value) return { value: null };
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return { error: '연락 링크 형식이 올바르지 않습니다.' };
+  }
+  const host = url.hostname.toLowerCase();
+  const path = url.pathname;
+  const allowed =
+    url.protocol === 'https:' &&
+    !url.username &&
+    !url.password &&
+    !url.port &&
+    ((host === 'open.kakao.com' && /^\/o\/[^/]+/.test(path)) ||
+      (host === 'discord.gg' && /^\/[^/]+/.test(path)) ||
+      ((host === 'discord.com' || host === 'www.discord.com') && /^\/invite\/[^/]+/.test(path)));
+  if (!allowed || value.length > 255) {
+    return { error: '연락 링크는 카카오톡 오픈채팅(https://open.kakao.com/o/...) 또는 디스코드 초대 링크(https://discord.gg/...)만 넣을 수 있습니다.' };
+  }
+  return { value };
+}
+
+// 이 회원이 이 글의 팀원인지: 팀이 구성되었고, 작성자이거나 수락된 지원자 (R26, R29)
+export async function isTeamMember(post, user) {
+  if (!user || !post.team_formed_at) return false;
+  if (post.user_id === user.user_id) return true;
+  const [rows] = await pool.query(
+    "SELECT 1 FROM applications WHERE post_id = ? AND user_id = ? AND status = 'ACCEPTED'",
+    [post.post_id, user.user_id]
+  );
+  return rows.length > 0;
+}
+
 // 익명 글은 작성자 이름과 ID를 응답에서 빼고 학과만 보낸다 (R24)
-// revealed: 수락된 지원자에게는 익명 글 작성자의 실명을 공개한다 (R26)
+// revealed: 팀이 구성되면 팀원에게는 익명 글 작성자의 실명을 공개한다 (R26)
 function toAuthor(row, revealed = false) {
   if (row.is_anonymous && !revealed) return { anonymous: true, name: '익명', department: row.author_department };
   return {
@@ -34,18 +72,9 @@ function toAuthor(row, revealed = false) {
   };
 }
 
-// 이 회원이 이 글에 수락된 지원자인지 (R26)
-export async function isAcceptedApplicant(postId, user) {
-  if (!user) return false;
-  const [rows] = await pool.query(
-    "SELECT 1 FROM applications WHERE post_id = ? AND user_id = ? AND status = 'ACCEPTED'",
-    [postId, user.user_id]
-  );
-  return rows.length > 0;
-}
-
 // viewer: 요청한 회원(req.user). isMine으로 "내 글인지"를 알려준다
 function toPost(row, viewer, skills, { withContent = true, revealed = false } = {}) {
+  const isMine = Boolean(viewer) && viewer.user_id === row.user_id;
   return {
     postId: row.post_id,
     title: row.title,
@@ -55,7 +84,10 @@ function toPost(row, viewer, skills, { withContent = true, revealed = false } = 
     isExpired: Boolean(row.deadline) && row.deadline < today(),
     status: row.status,
     isAnonymous: Boolean(row.is_anonymous),
-    isMine: Boolean(viewer) && viewer.user_id === row.user_id,
+    isMine,
+    teamFormed: Boolean(row.team_formed_at),
+    // 연락 링크는 공개 응답에 넣지 않는다. 작성자에게만(수정 화면용) 보내고, 팀원은 팀 페이지에서 본다
+    ...(isMine && { contactLink: row.contact_link }),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     category: { categoryId: row.category_id, name: row.category_name },
@@ -88,7 +120,9 @@ async function loadPost(postId, viewer) {
     }
   }
   return {
-    ...toPost(row, viewer, skills[row.post_id], { revealed: myApplication?.status === 'ACCEPTED' }),
+    ...toPost(row, viewer, skills[row.post_id], {
+      revealed: Boolean(row.team_formed_at) && myApplication?.status === 'ACCEPTED',
+    }),
     applicationCount: Number(counts.total),
     acceptedCount: Number(counts.accepted),
     myApplication,
@@ -113,14 +147,14 @@ async function savePost({ postId, userId, value, skills }) {
     let id = postId;
     if (id) {
       await conn.query(
-        'UPDATE posts SET category_id = ?, title = ?, content = ?, recruit_count = ?, deadline = ?, is_anonymous = ? WHERE post_id = ?',
-        [value.categoryId, value.title, value.content, value.recruitCount, value.deadline, value.isAnonymous, id]
+        'UPDATE posts SET category_id = ?, title = ?, content = ?, recruit_count = ?, deadline = ?, is_anonymous = ?, contact_link = ? WHERE post_id = ?',
+        [value.categoryId, value.title, value.content, value.recruitCount, value.deadline, value.isAnonymous, value.contactLink, id]
       );
       await conn.query('DELETE FROM post_skills WHERE post_id = ?', [id]);
     } else {
       const [result] = await conn.query(
-        'INSERT INTO posts (user_id, category_id, title, content, recruit_count, deadline, is_anonymous) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [userId, value.categoryId, value.title, value.content, value.recruitCount, value.deadline, value.isAnonymous]
+        'INSERT INTO posts (user_id, category_id, title, content, recruit_count, deadline, is_anonymous, contact_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, value.categoryId, value.title, value.content, value.recruitCount, value.deadline, value.isAnonymous, value.contactLink]
       );
       id = result.insertId;
     }
@@ -164,7 +198,9 @@ function validatePost(body) {
   if (deadline && (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) || Number.isNaN(Date.parse(deadline)))) {
     return { error: '마감일 형식이 올바르지 않습니다.' };
   }
-  return { value: { title, content, categoryId, recruitCount, deadline, isAnonymous } };
+  const contactLink = validateContactLink(body.contactLink);
+  if (contactLink.error) return { error: contactLink.error };
+  return { value: { title, content, categoryId, recruitCount, deadline, isAnonymous, contactLink: contactLink.value } };
 }
 
 async function categoryExists(categoryId) {
@@ -225,7 +261,7 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/author', async (req, res) => {
   const post = await findPost(req.params.id);
   if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
-  const revealed = await isAcceptedApplicant(post.post_id, req.user);
+  const revealed = await isTeamMember(post, req.user);
   const profile = await getPublicProfile(post.user_id, { anonymous: Boolean(post.is_anonymous) && !revealed });
   res.json({ postId: post.post_id, ...profile });
 });
@@ -262,6 +298,9 @@ router.patch('/:id/status', requireUser, async (req, res) => {
   if (!post) return;
   const status = req.body?.status;
   if (!STATUSES.includes(status)) return res.status(400).json({ message: '올바르지 않은 모집 상태입니다.' });
+  if (post.team_formed_at && status === 'OPEN') {
+    return res.status(400).json({ message: '팀이 구성된 글은 다시 모집할 수 없습니다.' });
+  }
 
   await pool.query('UPDATE posts SET status = ? WHERE post_id = ?', [status, post.post_id]);
   res.json(await loadPost(post.post_id, req.user));

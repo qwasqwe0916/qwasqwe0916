@@ -624,3 +624,64 @@ button.link.comment-delete {
 .mypage-tabs {
   margin: 12px 0 8px;
 }
+
+/* ---------- 팀 ---------- */
+.hint-text {
+  font-weight: 400;
+}
+
+.team-link {
+  display: block;
+  margin-top: 16px;
+}
+
+.team-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+
+.applicant-name {
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+}
+
+.contact-link {
+  margin-bottom: 8px;
+}
+
+.caution {
+  margin: 0;
+  color: #9a6700;
+}
+
+.member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.member-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.member-list li:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.member-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}

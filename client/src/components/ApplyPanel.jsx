@@ -56,8 +56,14 @@ export default function ApplyPanel({ post, onChanged }) {
           내 지원 상태: <span className={`badge app-${mine.status}`}>{APPLICATION_STATUS_LABELS[mine.status]}</span>
         </span>
         {mine.message && <p className="muted small">보낸 메시지: {mine.message}</p>}
-        {mine.status === 'ACCEPTED' && post.author.revealed && (
-          <p className="notice small">수락되어 익명 작성자의 실명이 공개되었습니다: {post.author.name}</p>
+        {mine.status === 'ACCEPTED' && !post.teamFormed && (
+          <p className="notice small">수락되었습니다. 작성자가 팀을 구성하면 팀 페이지가 열립니다.</p>
+        )}
+        {mine.status === 'ACCEPTED' && post.teamFormed && (
+          <p className="notice small">
+            팀이 구성되었습니다. 위의 "팀 페이지로 가기"에서 팀원 연락처와 팀 게시판을 확인하세요.
+            {post.author.revealed && ` (익명 작성자의 실명: ${post.author.name})`}
+          </p>
         )}
         {mine.status === 'PENDING' && (
           <button type="button" className="secondary" onClick={cancel} disabled={busy}>

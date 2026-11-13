@@ -1,7 +1,7 @@
 # 🧩 정규화 검토 (Normalization)
 
 * 작성일: 2026-11-09
-* 대상: [`erd.md`](erd.md)의 테이블 8개
+* 대상: [`erd.md`](erd.md)의 테이블 9개
 * 정규화 목표: **제3정규형(3NF)** 이상
 
 ---
@@ -91,6 +91,7 @@
 | `post_skills` | (post_id, skill_id) | ✅ | ✅ | ✅ | `is_required`는 조합에 종속 |
 | `comments` | comment_id | ✅ | ✅ | ✅ | |
 | `applications` | application_id | ✅ | ✅ | ✅ | (post_id, user_id)도 후보 키 (UNIQUE) |
+| `team_messages` | message_id | ✅ | ✅ | ✅ | 작성자 이름은 저장하지 않고 `user_id`로 참조 |
 
 * 모든 테이블에서 결정자(다른 컬럼을 결정하는 컬럼)가 모두 후보 키이므로 **BCNF**도 만족한다.
 
@@ -106,3 +107,4 @@
 | 게시글의 수락 인원 | `applications`에서 `status = 'ACCEPTED'`인 행 수 |
 | 게시글의 댓글 수 | `comments`에서 해당 `post_id`의 행 수 |
 | 사용자의 기술 스택 목록 | `user_skills`와 `skills`를 연결하여 조회 |
+| 팀원 목록 | 게시글 작성자 + `applications`에서 그 글의 `status = 'ACCEPTED'`인 지원자 (팀원 테이블을 따로 두지 않음) |

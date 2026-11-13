@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import SkillTags from '../components/SkillTags';
 
 // 게시글·댓글 작성자 프로필 (R15). 익명이면 학과와 기술 스택만 보인다.
-// kind: 'posts' | 'comments'
+// kind: 'posts' | 'comments' | 'applications'
 export default function AuthorProfilePage({ kind }) {
   const { id } = useParams();
   const key = `${kind}/${id}`;
@@ -13,13 +13,13 @@ export default function AuthorProfilePage({ kind }) {
   useEffect(() => {
     let cancelled = false;
     api
-      .get(`/api/${key}/author`)
+      .get(kind === 'applications' ? `/api/applications/${id}/applicant` : `/api/${key}/author`)
       .then((author) => !cancelled && setResult({ id: key, author, error: '' }))
       .catch((err) => !cancelled && setResult({ id: key, author: null, error: err.message }));
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, kind, id]);
 
   if (result.id !== key) return <p className="muted center">불러오는 중…</p>;
 

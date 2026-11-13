@@ -8,6 +8,7 @@ import PostDetailPage from './pages/PostDetailPage';
 import PostFormPage from './pages/PostFormPage';
 import AuthorProfilePage from './pages/AuthorProfilePage';
 import MyPage from './pages/MyPage';
+import TeamPage from './pages/TeamPage';
 
 function Header() {
   const { session, profile, signOut } = useAuth();
@@ -60,6 +61,11 @@ export default function App() {
         <Route path="/posts/:id" element={<PostDetailPage />} />
         <Route path="/posts/:id/author" element={<AuthorProfilePage kind="posts" />} />
         <Route path="/comments/:id/author" element={<AuthorProfilePage kind="comments" />} />
+        <Route
+          path="/applications/:id/applicant"
+          element={session ? <AuthorProfilePage kind="applications" /> : <Navigate to="/login" replace />}
+        />
+        <Route path="/posts/:id/team" element={session ? <TeamPage /> : <Navigate to="/login" replace />} />
         <Route path="/posts/:id/edit" element={session ? <PostFormPage key="edit" /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginPage />} />
         <Route path="/mypage" element={session ? <MyPage /> : <Navigate to="/login" replace />} />
