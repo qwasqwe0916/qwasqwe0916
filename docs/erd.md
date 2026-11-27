@@ -56,7 +56,6 @@ erDiagram
         int min_team_size "NULL 허용"
         int max_team_size "NULL 허용"
         date team_deadline "NULL 허용"
-        boolean manager_in_pool "관리자 편성 포함"
         int created_by FK "관리자"
         datetime created_at
     }
@@ -224,8 +223,7 @@ erDiagram
 | min_team_size | INT | NULL, CHECK (≥ 2) | 팀 최소 인원 (작성자 포함) |
 | max_team_size | INT | NULL, CHECK (≥ 2, ≥ min) | 팀 최대 인원 (작성자 포함) |
 | team_deadline | DATE | NULL | 팀 구성 마감일 |
-| manager_in_pool | BOOLEAN | NOT NULL, DEFAULT FALSE | 관리자도 팀 편성 대상인지 |
-| created_by | INT | NOT NULL, FK → users (ON DELETE CASCADE) | 만든 사람 (관리자) |
+| created_by | INT | NOT NULL, FK → users (ON DELETE CASCADE) | 만든 사람 (관리자, 팀 편성에는 참여하지 않음) |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
 
 ### (11) `room_members` — 방 참여자 (M:N)
@@ -246,10 +244,10 @@ erDiagram
 | 회원 삭제 (탈퇴) | `users`를 참조하는 FK(`user_skills`, `posts`, `comments`, `applications`, `team_messages`, `rooms`, `room_members`)에 `ON DELETE CASCADE` 적용. 탈퇴한 회원의 글이 삭제되면 그 글의 하위 데이터도 연쇄 삭제됨 | R23. 탈퇴 시 개인 데이터를 남기지 않음 |
 | 기술 스택·카테고리 삭제 | 기본값(RESTRICT) 유지 | 사용 중인 항목이 실수로 삭제되는 것을 방지 |
 | 상태값 표기 | ENUM 값은 영문 코드(`OPEN`, `PENDING` 등)로 저장하고 화면에서 한글로 표시 | 코드 비교 시 오타·인코딩 문제 방지 |
-| 전체 게시판과 방 게시판 | 게시글 테이블을 나누지 않고 `posts.room_id`(NULL 허용)로 구분 | R30. 지원·팀 구성·댓글 등 기존 기능을 그대로 재사용 |
+| 전체 게시판과 방 게시판 | 게시글 테이블을 나누지 않고 `posts.room_id`(NULL 허용)로 구분. 방 글의 `category_id`는 서버가 항상 "팀 프로젝트"로 저장 | R30, R31. 지원·팀 구성·댓글 등 기존 기능을 그대로 재사용 |
 | 방 참여 | 방 ↔ 회원 M:N을 `room_members`로 분해하고, 관리자 여부는 관계 속성 `role`로 저장 | 같은 회원이 방마다 다른 역할을 가질 수 있음 |
 | 한 방 한 팀 | "팀 소속"을 따로 저장하지 않고 "그 방에서 팀 구성이 끝난 글의 작성자 또는 수락된 지원자"로 판단 | R33. 팀 나가기·해체 시 별도 갱신 없이 자동으로 반영 |
-| 미편성 참여자 | 방 참여자 중 위 조건에 해당하지 않는 사람을 `NOT EXISTS` 서브쿼리로 조회 | R34 |
+| 미편성 참여자 | 방 참여자 중 `role = 'MEMBER'`이면서 위 조건에 해당하지 않는 사람을 `NOT EXISTS` 서브쿼리로 조회 (관리자는 항상 제외) | R32, R34 |
 | 방 삭제 | `posts.room_id`, `room_members`에 `ON DELETE CASCADE` → 방 안의 글과 그 글의 지원·댓글·팀 게시판까지 연쇄 삭제 | R32 |
 | 팀원 저장 방식 | 팀원 테이블을 따로 두지 않고 "글 작성자 + 그 글에 수락된 지원자"로 판단. 팀 구성 여부는 `posts.team_formed_at`으로 표시 | R27, R29. 같은 정보를 두 곳에 저장하지 않음 (팀 구성 후 지원 상태는 바꿀 수 없으므로 팀원 목록이 고정됨) |
 | 팀 게시판 분리 | 공개 댓글(`comments`)과 섞지 않고 `team_messages`로 분리 | 접근 권한(누구나 vs 팀원만)이 다른 데이터를 테이블 단위로 구분 |

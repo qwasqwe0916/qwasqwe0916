@@ -77,7 +77,7 @@ export default function PostDetailPage() {
       </Link>
       <div className="badges detail-badges">
         {post.room && <span className="badge room-badge">{post.room.name}</span>}
-        <span className="badge">{post.category.name}</span>
+        {!post.room && <span className="badge">{post.category.name}</span>}
         <span className={`badge status-${post.status}`}>{STATUS_LABELS[post.status]}</span>
       </div>
       <h1>{post.title}</h1>

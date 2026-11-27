@@ -77,7 +77,7 @@ CREATE TABLE user_skills (
 
 -- -------------------------------------------------------------
 -- (4-1) rooms: 방 (수업 팀플처럼 정해진 사람끼리 조를 짜는 공간)
--- 방을 만든 사람이 관리자가 되며, 참여 코드로만 들어올 수 있다
+-- 방을 만든 사람이 관리자가 되며(팀 편성에는 참여하지 않음), 참여 코드로만 들어올 수 있다
 -- -------------------------------------------------------------
 CREATE TABLE rooms (
   room_id         INT          NOT NULL AUTO_INCREMENT,
@@ -87,7 +87,6 @@ CREATE TABLE rooms (
   min_team_size   INT          NULL     COMMENT '팀 최소 인원 (작성자 포함, NULL이면 제한 없음)',
   max_team_size   INT          NULL     COMMENT '팀 최대 인원 (작성자 포함, NULL이면 제한 없음)',
   team_deadline   DATE         NULL     COMMENT '팀 구성 마감일 (지나면 새 모집글·지원 불가)',
-  manager_in_pool BOOLEAN      NOT NULL DEFAULT FALSE COMMENT 'TRUE: 관리자도 팀 편성 대상에 포함',
   created_by      INT          NOT NULL COMMENT '만든 사람 (관리자)',
   created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (room_id),
