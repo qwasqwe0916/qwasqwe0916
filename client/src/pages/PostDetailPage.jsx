@@ -72,10 +72,11 @@ export default function PostDetailPage() {
 
   return (
     <div className="card">
-      <Link to="/" className="small">
-        ← 목록으로
+      <Link to={post.room ? `/rooms/${post.room.roomId}` : '/'} className="small">
+        ← {post.room ? `${post.room.name} 방으로` : '목록으로'}
       </Link>
       <div className="badges detail-badges">
+        {post.room && <span className="badge room-badge">{post.room.name}</span>}
         <span className="badge">{post.category.name}</span>
         <span className={`badge status-${post.status}`}>{STATUS_LABELS[post.status]}</span>
       </div>
@@ -134,7 +135,7 @@ export default function PostDetailPage() {
 
       {isOwner ? <ApplicantManager post={post} onChanged={reload} /> : <ApplyPanel post={post} onChanged={reload} />}
 
-      <Comments postId={id} forceAnonymous={post.isAnonymous && post.isMine} />
+      <Comments postId={id} forceAnonymous={post.isAnonymous && post.isMine} allowAnonymous={!post.room} />
     </div>
   );
 }

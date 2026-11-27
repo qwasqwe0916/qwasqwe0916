@@ -6,7 +6,8 @@ import { useAuth } from '../auth/AuthContext';
 
 // 게시글 상세 아래의 댓글 영역
 // forceAnonymous: 익명 글의 작성자 본인이면 댓글이 항상 "익명(작성자)"로 표시된다 (R25)
-export default function Comments({ postId, forceAnonymous }) {
+// allowAnonymous: 방 글에서는 익명 댓글을 쓸 수 없다 (R31)
+export default function Comments({ postId, forceAnonymous, allowAnonymous = true }) {
   const { profile } = useAuth();
   const [result, setResult] = useState({ postId: null, comments: [], error: '' });
   const [content, setContent] = useState('');
@@ -31,7 +32,7 @@ export default function Comments({ postId, forceAnonymous }) {
     setBusy(true);
     setError('');
     try {
-      const comments = await api.post(`/api/posts/${postId}/comments`, { content, isAnonymous });
+      const comments = await api.post(`/api/posts/${postId}/comments`, { content, isAnonymous: allowAnonymous && isAnonymous });
       setResult({ postId, comments, error: '' });
       setContent('');
     } catch (err) {
@@ -97,6 +98,7 @@ export default function Comments({ postId, forceAnonymous }) {
             placeholder="댓글을 입력하세요"
           />
           <div className="comment-form-row">
+            {allowAnonymous ? (
             <label className="checkbox">
               <input
                 type="checkbox"
@@ -107,6 +109,9 @@ export default function Comments({ postId, forceAnonymous }) {
               익명으로 작성
               {forceAnonymous && <span className="muted small">(익명 글의 작성자는 댓글도 "익명(작성자)"로 표시됩니다)</span>}
             </label>
+            ) : (
+              <span />
+            )}
             <button type="submit" disabled={busy}>
               {busy ? '등록 중…' : '댓글 등록'}
             </button>

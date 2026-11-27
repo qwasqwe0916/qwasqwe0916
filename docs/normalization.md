@@ -1,7 +1,7 @@
 # 🧩 정규화 검토 (Normalization)
 
 * 작성일: 2026-11-09
-* 대상: [`erd.md`](erd.md)의 테이블 9개
+* 대상: [`erd.md`](erd.md)의 테이블 11개
 * 정규화 목표: **제3정규형(3NF)** 이상
 
 ---
@@ -92,6 +92,8 @@
 | `comments` | comment_id | ✅ | ✅ | ✅ | |
 | `applications` | application_id | ✅ | ✅ | ✅ | (post_id, user_id)도 후보 키 (UNIQUE) |
 | `team_messages` | message_id | ✅ | ✅ | ✅ | 작성자 이름은 저장하지 않고 `user_id`로 참조 |
+| `rooms` | room_id | ✅ | ✅ | ✅ | `join_code`도 후보 키 (UNIQUE), 관리자 이름은 `created_by`로 참조 |
+| `room_members` | (room_id, user_id) | ✅ | ✅ | ✅ | `role`은 (방, 회원) 조합 전체에 종속 |
 
 * 모든 테이블에서 결정자(다른 컬럼을 결정하는 컬럼)가 모두 후보 키이므로 **BCNF**도 만족한다.
 
@@ -108,3 +110,5 @@
 | 게시글의 댓글 수 | `comments`에서 해당 `post_id`의 행 수 |
 | 사용자의 기술 스택 목록 | `user_skills`와 `skills`를 연결하여 조회 |
 | 팀원 목록 | 게시글 작성자 + `applications`에서 그 글의 `status = 'ACCEPTED'`인 지원자 (팀원 테이블을 따로 두지 않음) |
+| 방에서의 팀 소속 / 미편성 참여자 | 그 방에서 팀 구성이 끝난 글(`team_formed_at IS NOT NULL`)의 작성자·수락된 지원자인지로 판단, 아니면 미편성 (`NOT EXISTS`) |
+| 방 참여 인원, 방 글 수 | `room_members`, `posts`에서 해당 `room_id`의 행 수 (COUNT) |

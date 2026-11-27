@@ -21,6 +21,8 @@ DROP TABLE IF EXISTS applications;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS post_skills;
 DROP TABLE IF EXISTS posts;
+DROP TABLE IF EXISTS room_members;
+DROP TABLE IF EXISTS rooms;
 DROP TABLE IF EXISTS user_skills;
 DROP TABLE IF EXISTS skills;
 DROP TABLE IF EXISTS categories;
@@ -74,11 +76,49 @@ CREATE TABLE user_skills (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------
+-- (4-1) rooms: 방 (수업 팀플처럼 정해진 사람끼리 조를 짜는 공간)
+-- 방을 만든 사람이 관리자가 되며, 참여 코드로만 들어올 수 있다
+-- -------------------------------------------------------------
+CREATE TABLE rooms (
+  room_id         INT          NOT NULL AUTO_INCREMENT,
+  name            VARCHAR(100) NOT NULL COMMENT '방 이름 (예: 데이터베이스 2분반 텀프로젝트)',
+  description     TEXT         NULL,
+  join_code       CHAR(6)      NOT NULL COMMENT '참여 코드',
+  min_team_size   INT          NULL     COMMENT '팀 최소 인원 (작성자 포함, NULL이면 제한 없음)',
+  max_team_size   INT          NULL     COMMENT '팀 최대 인원 (작성자 포함, NULL이면 제한 없음)',
+  team_deadline   DATE         NULL     COMMENT '팀 구성 마감일 (지나면 새 모집글·지원 불가)',
+  manager_in_pool BOOLEAN      NOT NULL DEFAULT FALSE COMMENT 'TRUE: 관리자도 팀 편성 대상에 포함',
+  created_by      INT          NOT NULL COMMENT '만든 사람 (관리자)',
+  created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (room_id),
+  CONSTRAINT uq_rooms_join_code UNIQUE (join_code),
+  CONSTRAINT fk_rooms_creator FOREIGN KEY (created_by) REFERENCES users (user_id) ON DELETE CASCADE,
+  CONSTRAINT chk_rooms_min_size CHECK (min_team_size IS NULL OR min_team_size >= 2),
+  CONSTRAINT chk_rooms_max_size CHECK (max_team_size IS NULL OR max_team_size >= 2),
+  CONSTRAINT chk_rooms_size_range CHECK (min_team_size IS NULL OR max_team_size IS NULL OR max_team_size >= min_team_size)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------
+-- (4-2) room_members: 방 참여자 (M:N)
+-- -------------------------------------------------------------
+CREATE TABLE room_members (
+  room_id   INT      NOT NULL,
+  user_id   INT      NOT NULL,
+  role      ENUM('MANAGER', 'MEMBER') NOT NULL DEFAULT 'MEMBER' COMMENT '관리자 / 참여자',
+  joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (room_id, user_id),
+  CONSTRAINT fk_room_members_room FOREIGN KEY (room_id) REFERENCES rooms (room_id) ON DELETE CASCADE,
+  CONSTRAINT fk_room_members_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------
 -- (5) posts: 모집 게시글
+-- room_id가 NULL이면 전체 게시판 글, 값이 있으면 그 방의 글
 -- -------------------------------------------------------------
 CREATE TABLE posts (
   post_id       INT          NOT NULL AUTO_INCREMENT,
   user_id       INT          NOT NULL COMMENT '작성자',
+  room_id       INT          NULL     COMMENT 'NULL: 전체 게시판, 값: 방 게시판',
   category_id   INT          NOT NULL,
   title         VARCHAR(100) NOT NULL,
   content       TEXT         NOT NULL,
@@ -93,6 +133,7 @@ CREATE TABLE posts (
   PRIMARY KEY (post_id),
   CONSTRAINT fk_posts_user     FOREIGN KEY (user_id)     REFERENCES users (user_id) ON DELETE CASCADE,
   CONSTRAINT fk_posts_category FOREIGN KEY (category_id) REFERENCES categories (category_id),
+  CONSTRAINT fk_posts_room     FOREIGN KEY (room_id)     REFERENCES rooms (room_id) ON DELETE CASCADE,
   CONSTRAINT chk_posts_recruit_count CHECK (recruit_count >= 1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

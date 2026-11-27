@@ -3,6 +3,8 @@ import { pool } from '../db.js';
 import { requireUser } from '../middleware/auth.js';
 import { getPostSkills, validateSkillIds } from '../skills.js';
 import { getPublicProfile } from '../profiles.js';
+import { today } from '../dates.js';
+import { checkRoomParticipation, getMembership } from '../rooms.js';
 
 const router = Router();
 const STATUSES = ['OPEN', 'CLOSED'];
@@ -10,15 +12,32 @@ const STATUSES = ['OPEN', 'CLOSED'];
 const SELECT_POST = `
   SELECT p.post_id, p.title, p.content, p.recruit_count, p.deadline, p.status, p.is_anonymous,
          p.contact_link, p.team_formed_at, p.created_at, p.updated_at,
+         p.room_id, r.name AS room_name, r.max_team_size AS room_max_team_size,
          c.category_id, c.name AS category_name,
          u.user_id, u.name AS author_name, u.department AS author_department
   FROM posts p
   JOIN categories c ON c.category_id = p.category_id
-  JOIN users u      ON u.user_id = p.user_id`;
+  JOIN users u      ON u.user_id = p.user_id
+  LEFT JOIN rooms r ON r.room_id = p.room_id`;
 
-// 서버 기준 오늘 날짜 'YYYY-MM-DD' (마감일 비교용)
-export function today() {
-  return new Date().toLocaleDateString('sv-SE');
+// 방 글은 그 방 참여자에게만 보인다 (R30)
+export async function canViewPost(post, user) {
+  if (!post.room_id) return true;
+  return Boolean(await getMembership(post.room_id, user?.user_id));
+}
+
+// 게시글을 찾고 볼 권한까지 확인한다. 없으면 404, 방 참여자가 아니면 403
+export async function loadVisiblePost(req, res, postId = req.params.id) {
+  const post = await findPost(postId);
+  if (!post) {
+    res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
+    return null;
+  }
+  if (!(await canViewPost(post, req.user))) {
+    res.status(403).json({ message: '방 참여자만 볼 수 있는 글입니다.' });
+    return null;
+  }
+  return post;
 }
 
 // 연락 링크는 카카오톡 오픈채팅과 디스코드 초대 링크만 허용한다 (R28)
@@ -91,6 +110,7 @@ function toPost(row, viewer, skills, { withContent = true, revealed = false } = 
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     category: { categoryId: row.category_id, name: row.category_name },
+    room: row.room_id ? { roomId: row.room_id, name: row.room_name, maxTeamSize: row.room_max_team_size } : null,
     author: toAuthor(row, revealed),
     skills,
   };
@@ -140,7 +160,7 @@ async function validatePostSkills(input) {
 }
 
 // 게시글 저장(작성·수정)과 기술 태그 교체를 한 트랜잭션으로 처리한다
-async function savePost({ postId, userId, value, skills }) {
+async function savePost({ postId, userId, roomId = null, value, skills }) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -153,8 +173,8 @@ async function savePost({ postId, userId, value, skills }) {
       await conn.query('DELETE FROM post_skills WHERE post_id = ?', [id]);
     } else {
       const [result] = await conn.query(
-        'INSERT INTO posts (user_id, category_id, title, content, recruit_count, deadline, is_anonymous, contact_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [userId, value.categoryId, value.title, value.content, value.recruitCount, value.deadline, value.isAnonymous, value.contactLink]
+        'INSERT INTO posts (user_id, room_id, category_id, title, content, recruit_count, deadline, is_anonymous, contact_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, roomId, value.categoryId, value.title, value.content, value.recruitCount, value.deadline, value.isAnonymous, value.contactLink]
       );
       id = result.insertId;
     }
@@ -203,6 +223,15 @@ function validatePost(body) {
   return { value: { title, content, categoryId, recruitCount, deadline, isAnonymous, contactLink: contactLink.value } };
 }
 
+// 방 글 규칙: 익명 불가, 모집 인원은 (방 최대 인원 - 작성자 1명)까지 (R31)
+function applyRoomRules(value, maxTeamSize) {
+  if (value.isAnonymous) return '방 안에서는 익명으로 글을 쓸 수 없습니다.';
+  if (maxTeamSize && value.recruitCount > maxTeamSize - 1) {
+    return `이 방의 팀 최대 인원은 ${maxTeamSize}명(작성자 포함)이라 모집 인원은 ${maxTeamSize - 1}명까지 가능합니다.`;
+  }
+  return '';
+}
+
 async function categoryExists(categoryId) {
   const [rows] = await pool.query('SELECT 1 FROM categories WHERE category_id = ?', [categoryId]);
   return rows.length > 0;
@@ -226,6 +255,17 @@ async function loadOwnPost(req, res) {
 router.get('/', async (req, res) => {
   const conditions = [];
   const params = [];
+  // 방 게시판(?room=ID)은 참여자만, 전체 게시판에는 방 글을 보여주지 않는다
+  if (req.query.room) {
+    const roomId = Number(req.query.room);
+    if (!Number.isInteger(roomId) || !(await getMembership(roomId, req.user?.user_id))) {
+      return res.status(403).json({ message: '방 참여자만 볼 수 있습니다.' });
+    }
+    conditions.push('p.room_id = ?');
+    params.push(roomId);
+  } else {
+    conditions.push('p.room_id IS NULL');
+  }
   const categoryId = Number(req.query.category);
   if (req.query.category && Number.isInteger(categoryId)) {
     conditions.push('p.category_id = ?');
@@ -244,7 +284,7 @@ router.get('/', async (req, res) => {
     conditions.push('EXISTS (SELECT 1 FROM post_skills ps WHERE ps.post_id = p.post_id AND ps.skill_id IN (?))');
     params.push(skillIds);
   }
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const where = `WHERE ${conditions.join(' AND ')}`;
   const [rows] = await pool.query(`${SELECT_POST} ${where} ORDER BY p.created_at DESC, p.post_id DESC`, params);
   const skills = await getPostSkills(rows.map((row) => row.post_id));
   res.json(rows.map((row) => toPost(row, req.user, skills[row.post_id], { withContent: false })));
@@ -252,15 +292,15 @@ router.get('/', async (req, res) => {
 
 // 게시글 상세 (R11)
 router.get('/:id', async (req, res) => {
-  const post = await findPost(req.params.id);
-  if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
+  const post = await loadVisiblePost(req, res);
+  if (!post) return;
   res.json(await loadPost(post.post_id, req.user));
 });
 
 // 게시글 작성자 프로필 (R15). 익명 글이면 학과와 기술 스택만 공개한다
 router.get('/:id/author', async (req, res) => {
-  const post = await findPost(req.params.id);
-  if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
+  const post = await loadVisiblePost(req, res);
+  if (!post) return;
   const revealed = await isTeamMember(post, req.user);
   const profile = await getPublicProfile(post.user_id, { anonymous: Boolean(post.is_anonymous) && !revealed });
   res.json({ postId: post.post_id, ...profile });
@@ -274,7 +314,17 @@ router.post('/', requireUser, async (req, res) => {
   const skills = await validatePostSkills(req.body?.skills);
   if (skills.error) return res.status(400).json({ message: skills.error });
 
-  const postId = await savePost({ userId: req.user.user_id, value, skills: skills.value });
+  // 방 글이면 참여자·관리자 편성 여부·마감일·이미 팀 소속인지 검사 (R30 ~ R33)
+  let roomId = null;
+  if (req.body?.roomId !== undefined && req.body?.roomId !== null && req.body?.roomId !== '') {
+    roomId = Number(req.body.roomId);
+    const check = Number.isInteger(roomId) ? await checkRoomParticipation(roomId, req.user.user_id) : { status: 400, message: '방 정보가 올바르지 않습니다.' };
+    if (!check.membership) return res.status(check.status).json({ message: check.message });
+    const ruleError = applyRoomRules(value, check.membership.max_team_size);
+    if (ruleError) return res.status(400).json({ message: ruleError });
+  }
+
+  const postId = await savePost({ userId: req.user.user_id, roomId, value, skills: skills.value });
   res.status(201).json(await loadPost(postId, req.user));
 });
 
@@ -287,6 +337,10 @@ router.put('/:id', requireUser, async (req, res) => {
   if (!(await categoryExists(value.categoryId))) return res.status(400).json({ message: '존재하지 않는 카테고리입니다.' });
   const skills = await validatePostSkills(req.body?.skills);
   if (skills.error) return res.status(400).json({ message: skills.error });
+  if (post.room_id) {
+    const ruleError = applyRoomRules(value, post.room_max_team_size);
+    if (ruleError) return res.status(400).json({ message: ruleError });
+  }
 
   await savePost({ postId: post.post_id, value, skills: skills.value });
   res.json(await loadPost(post.post_id, req.user));

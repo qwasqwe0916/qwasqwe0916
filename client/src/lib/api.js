@@ -30,7 +30,26 @@ async function request(path, { method = 'GET', body } = {}) {
   return json;
 }
 
+// 파일 내려받기 (토큰이 필요한 CSV 등)
+async function download(path, filename) {
+  const { data } = await supabase.auth.getSession();
+  const res = await fetch(BASE_URL + path, {
+    headers: data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {},
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    throw new Error(json?.message ?? `내려받기에 실패했습니다. (${res.status})`);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
+  download,
   get: (path) => request(path),
   post: (path, body) => request(path, { method: 'POST', body }),
   put: (path, body) => request(path, { method: 'PUT', body }),

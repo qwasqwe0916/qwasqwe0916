@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatDate } from '../lib/format';
 import SkillTags from '../components/SkillTags';
@@ -14,6 +14,7 @@ function linkName(url) {
 // 팀 페이지 (R29): 팀 구성 후 작성자와 수락된 팀원만 들어올 수 있다
 export default function TeamPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [team, setTeam] = useState({ id: null, data: null, error: '' });
   const [messages, setMessages] = useState([]);
   const [content, setContent] = useState('');
@@ -49,6 +50,18 @@ export default function TeamPage() {
     }
   }
 
+  // 팀 나가기 (R35): 팀원만. 마지막 팀원이 나가면 팀 구성이 취소된다
+  async function leaveTeam() {
+    if (!window.confirm('팀을 나가시겠습니까?\n\n· 팀 페이지와 팀 게시판에 더 이상 들어올 수 없습니다.\n· 이 글에 다시 지원할 수 없습니다.\n· 팀 게시판에 쓴 글은 남습니다.')) return;
+    try {
+      await api.post(`/api/posts/${id}/team/leave`, {});
+      window.alert('팀을 나갔습니다.');
+      navigate(team.data?.room ? `/rooms/${team.data.room.roomId}` : `/posts/${id}`, { replace: true });
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function remove(messageId) {
     if (!window.confirm('이 글을 삭제하시겠습니까?')) return;
     try {
@@ -77,6 +90,11 @@ export default function TeamPage() {
       </Link>
       <h1 className="profile-title">팀 페이지</h1>
       <p className="muted small">
+        {data.room && (
+          <>
+            <Link to={`/rooms/${data.room.roomId}`}>{data.room.name}</Link> ·{' '}
+          </>
+        )}
         {data.category} · {data.title} · 팀 구성 {formatDate(data.formedAt)} · 팀원 {data.members.length}명
       </p>
 
@@ -170,6 +188,16 @@ export default function TeamPage() {
         </form>
         {error && <p className="error">{error}</p>}
       </section>
+
+      <div className="room-leave">
+        {data.isLeader ? (
+          <span className="muted small">팀장은 팀을 나갈 수 없습니다. 팀을 해체하려면 게시글을 삭제해 주세요.</span>
+        ) : (
+          <button type="button" className="link small" onClick={leaveTeam}>
+            팀 나가기
+          </button>
+        )}
+      </div>
     </div>
   );
 }

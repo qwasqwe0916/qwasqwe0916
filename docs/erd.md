@@ -1,7 +1,7 @@
 # 🗂️ ERD 설계 (Entity-Relationship Design)
 
 * 작성일: 2026-11-09
-* 요구사항 번호(R1 ~ R29)는 [`requirements.md`](requirements.md)를 따른다.
+* 요구사항 번호(R1 ~ R36)는 [`requirements.md`](requirements.md)를 따른다.
 * 데이터베이스: MySQL (`campus_matcher`, `utf8mb4`)
 
 ---
@@ -21,6 +21,10 @@ erDiagram
     posts ||--o{ applications : "지원받음"
     users ||--o{ applications : "지원"
     posts ||--o{ team_messages : "팀 게시판"
+    users ||--o{ rooms : "개설"
+    rooms ||--o{ room_members : "참여자"
+    users ||--o{ room_members : "참여"
+    rooms |o--o{ posts : "방 게시판"
     users ||--o{ team_messages : "작성"
 
     users {
@@ -44,9 +48,28 @@ erDiagram
         int user_id PK, FK
         int skill_id PK, FK
     }
+    rooms {
+        int room_id PK
+        varchar name
+        text description "NULL 허용"
+        char join_code UK "참여 코드"
+        int min_team_size "NULL 허용"
+        int max_team_size "NULL 허용"
+        date team_deadline "NULL 허용"
+        boolean manager_in_pool "관리자 편성 포함"
+        int created_by FK "관리자"
+        datetime created_at
+    }
+    room_members {
+        int room_id PK, FK
+        int user_id PK, FK
+        enum role "MANAGER / MEMBER"
+        datetime joined_at
+    }
     posts {
         int post_id PK
         int user_id FK "작성자"
+        int room_id FK "NULL: 전체 게시판"
         int category_id FK
         varchar title
         text content
@@ -95,9 +118,13 @@ erDiagram
 | 사용자 – 기술 스택 | **M : N** | 중간 테이블 `user_skills` | R3, R15 |
 | 게시글 – 기술 스택 | **M : N** | 중간 테이블 `post_skills` (관계 속성 `is_required`) | R6, R12 |
 | 사용자 – 게시글 (지원) | **M : N** | 중간 테이블 `applications` (관계 속성 `status`, `message`) | R16 ~ R22 |
+| 게시글 – 팀 게시판 글 | 1 : N | `team_messages.post_id` FK | R29 |
+| 사용자 – 방 (개설) | 1 : N | `rooms.created_by` FK | R30, R32 |
+| 사용자 – 방 (참여) | **M : N** | 중간 테이블 `room_members` (관계 속성 `role`) | R30, R36 |
+| 방 – 게시글 | 1 : N (선택) | `posts.room_id` FK (NULL이면 전체 게시판) | R30, R31 |
 
-* 다대다 관계 3개는 모두 중간 테이블로 분해하였다.
-* 그중 `post_skills`와 `applications`는 **관계 자체가 속성을 가지는** 경우로, 해당 속성은 어느 한쪽 엔티티가 아니라 관계에 종속된다.
+* 다대다 관계 4개는 모두 중간 테이블로 분해하였다.
+* 그중 `post_skills`, `applications`, `room_members`는 **관계 자체가 속성을 가지는** 경우로, 해당 속성은 어느 한쪽 엔티티가 아니라 관계에 종속된다.
 
 ---
 
@@ -137,6 +164,7 @@ erDiagram
 |---|---|---|---|
 | post_id | INT | PK, AUTO_INCREMENT | |
 | user_id | INT | NOT NULL, FK → users (ON DELETE CASCADE) | 작성자 |
+| room_id | INT | NULL, FK → rooms (ON DELETE CASCADE) | NULL이면 전체 게시판 글, 값이 있으면 그 방의 글 |
 | category_id | INT | NOT NULL, FK → categories | |
 | title | VARCHAR(100) | NOT NULL | 제목 |
 | content | TEXT | NOT NULL | 내용 |
@@ -186,6 +214,28 @@ erDiagram
 | content | TEXT | NOT NULL | |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
 
+### (10) `rooms` — 방
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|---|---|---|---|
+| room_id | INT | PK, AUTO_INCREMENT | |
+| name | VARCHAR(100) | NOT NULL | 방 이름 |
+| description | TEXT | NULL | 설명 |
+| join_code | CHAR(6) | NOT NULL, UNIQUE | 참여 코드 (헷갈리는 0·O·1·I 제외) |
+| min_team_size | INT | NULL, CHECK (≥ 2) | 팀 최소 인원 (작성자 포함) |
+| max_team_size | INT | NULL, CHECK (≥ 2, ≥ min) | 팀 최대 인원 (작성자 포함) |
+| team_deadline | DATE | NULL | 팀 구성 마감일 |
+| manager_in_pool | BOOLEAN | NOT NULL, DEFAULT FALSE | 관리자도 팀 편성 대상인지 |
+| created_by | INT | NOT NULL, FK → users (ON DELETE CASCADE) | 만든 사람 (관리자) |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+
+### (11) `room_members` — 방 참여자 (M:N)
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|---|---|---|---|
+| room_id | INT | PK, FK → rooms (ON DELETE CASCADE) | |
+| user_id | INT | PK, FK → users (ON DELETE CASCADE) | |
+| role | ENUM('MANAGER', 'MEMBER') | NOT NULL, DEFAULT 'MEMBER' | 관리자 / 참여자 |
+| joined_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+
 ---
 
 ## 4. 설계 결정 사항
@@ -193,9 +243,14 @@ erDiagram
 | 항목 | 결정 | 근거 |
 |---|---|---|
 | 게시글 삭제 시 하위 데이터 | `post_skills`, `comments`, `applications`에 `ON DELETE CASCADE` 적용 | R10. 게시글 없이 남을 이유가 없는 데이터 |
-| 회원 삭제 (탈퇴) | `users`를 참조하는 FK(`user_skills`, `posts`, `comments`, `applications`, `team_messages`)에 `ON DELETE CASCADE` 적용. 탈퇴한 회원의 글이 삭제되면 그 글의 하위 데이터도 연쇄 삭제됨 | R23. 탈퇴 시 개인 데이터를 남기지 않음 |
+| 회원 삭제 (탈퇴) | `users`를 참조하는 FK(`user_skills`, `posts`, `comments`, `applications`, `team_messages`, `rooms`, `room_members`)에 `ON DELETE CASCADE` 적용. 탈퇴한 회원의 글이 삭제되면 그 글의 하위 데이터도 연쇄 삭제됨 | R23. 탈퇴 시 개인 데이터를 남기지 않음 |
 | 기술 스택·카테고리 삭제 | 기본값(RESTRICT) 유지 | 사용 중인 항목이 실수로 삭제되는 것을 방지 |
 | 상태값 표기 | ENUM 값은 영문 코드(`OPEN`, `PENDING` 등)로 저장하고 화면에서 한글로 표시 | 코드 비교 시 오타·인코딩 문제 방지 |
+| 전체 게시판과 방 게시판 | 게시글 테이블을 나누지 않고 `posts.room_id`(NULL 허용)로 구분 | R30. 지원·팀 구성·댓글 등 기존 기능을 그대로 재사용 |
+| 방 참여 | 방 ↔ 회원 M:N을 `room_members`로 분해하고, 관리자 여부는 관계 속성 `role`로 저장 | 같은 회원이 방마다 다른 역할을 가질 수 있음 |
+| 한 방 한 팀 | "팀 소속"을 따로 저장하지 않고 "그 방에서 팀 구성이 끝난 글의 작성자 또는 수락된 지원자"로 판단 | R33. 팀 나가기·해체 시 별도 갱신 없이 자동으로 반영 |
+| 미편성 참여자 | 방 참여자 중 위 조건에 해당하지 않는 사람을 `NOT EXISTS` 서브쿼리로 조회 | R34 |
+| 방 삭제 | `posts.room_id`, `room_members`에 `ON DELETE CASCADE` → 방 안의 글과 그 글의 지원·댓글·팀 게시판까지 연쇄 삭제 | R32 |
 | 팀원 저장 방식 | 팀원 테이블을 따로 두지 않고 "글 작성자 + 그 글에 수락된 지원자"로 판단. 팀 구성 여부는 `posts.team_formed_at`으로 표시 | R27, R29. 같은 정보를 두 곳에 저장하지 않음 (팀 구성 후 지원 상태는 바꿀 수 없으므로 팀원 목록이 고정됨) |
 | 팀 게시판 분리 | 공개 댓글(`comments`)과 섞지 않고 `team_messages`로 분리 | 접근 권한(누구나 vs 팀원만)이 다른 데이터를 테이블 단위로 구분 |
 | 지원 취소 | 별도 상태값 없이 해당 지원 행을 삭제 (대기 상태일 때만, 서버에서 검사) | R22. 상태값을 3개로 단순하게 유지 |

@@ -685,3 +685,82 @@ button.link.comment-delete {
   flex-wrap: wrap;
   gap: 12px;
 }
+
+/* ---------- 방 ---------- */
+.badge.room-badge {
+  background: #fbefff;
+  border-color: #e6c8f5;
+  color: #8250df;
+}
+
+.room-title {
+  margin: 12px 0 4px;
+  justify-content: flex-start;
+}
+
+.room-desc {
+  margin: 4px 0;
+  white-space: pre-wrap;
+}
+
+.join-code {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  display: inline-block;
+}
+
+.join-code strong,
+.code-text {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+}
+
+.room-tabs {
+  margin: 16px 0;
+}
+
+.join-form {
+  display: flex;
+  gap: 8px;
+}
+
+.code-input {
+  width: 160px;
+  font-family: ui-monospace, Menlo, monospace;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.team-status-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.team-status-list > li {
+  padding: 8px 0;
+}
+
+.member-mini {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.danger-zone {
+  border-color: #ffcecb;
+}
+
+.room-leave {
+  margin-top: 24px;
+  text-align: right;
+}
+
+.room-leave button.link {
+  color: var(--muted);
+}
