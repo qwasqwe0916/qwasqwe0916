@@ -47,6 +47,7 @@ export default function MyPage() {
               <li key={post.postId}>
                 <Link to={`/posts/${post.postId}`} className="post-item">
                   <div className="badges">
+                    {post.room && <span className="badge room-badge">{post.room.name}</span>}
                     <span className="badge">{post.category}</span>
                     <span className={`badge status-${post.status}`}>{STATUS_LABELS[post.status]}</span>
                     {post.isAnonymous && <span className="badge">익명</span>}
@@ -73,6 +74,7 @@ export default function MyPage() {
             <li key={app.applicationId}>
               <Link to={`/posts/${app.post.postId}`} className="post-item">
                 <div className="badges">
+                  {app.post.room && <span className="badge room-badge">{app.post.room.name}</span>}
                   <span className="badge">{app.post.category}</span>
                   <span className={`badge status-${app.post.status}`}>{STATUS_LABELS[app.post.status]}</span>
                   <span className={`badge app-${app.status}`}>내 지원: {APPLICATION_STATUS_LABELS[app.status]}</span>

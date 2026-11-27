@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useOptions } from '../lib/useOptions';
 import PostSkillPicker from '../components/PostSkillPicker';
@@ -10,14 +10,30 @@ const EMPTY = { categoryId: '', title: '', content: '', recruitCount: 1, deadlin
 export default function PostFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
+  const [searchParams] = useSearchParams();
+  const roomParam = searchParams.get('room');
   const categories = useOptions('/api/categories');
   const skillOptions = useOptions('/api/skills');
   const navigate = useNavigate();
 
   const [form, setForm] = useState(EMPTY);
+  const [room, setRoom] = useState(null); // 방 글이면 { roomId, name, maxTeamSize }
   const [loadedId, setLoadedId] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // 새 글을 방에 쓰는 경우 방 정보를 불러온다
+  useEffect(() => {
+    if (isEdit || !roomParam) return;
+    let cancelled = false;
+    api
+      .get(`/api/rooms/${roomParam}`)
+      .then((r) => !cancelled && setRoom({ roomId: r.roomId, name: r.name, maxTeamSize: r.maxTeamSize }))
+      .catch((err) => !cancelled && setError(err.message));
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, roomParam]);
 
   // 수정 화면이면 기존 내용을 불러온다
   useEffect(() => {
@@ -40,6 +56,7 @@ export default function PostFormPage() {
             contactLink: post.contactLink ?? '',
             skills: post.skills.map(({ skillId, isRequired }) => ({ skillId, isRequired })),
           });
+          setRoom(post.room);
         }
         setLoadedId(id);
       })
@@ -54,15 +71,28 @@ export default function PostFormPage() {
   }, [id, isEdit]);
 
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+  // 방 글은 카테고리 기본값이 "팀 프로젝트"
+  const teamProjectId = categories.find((c) => c.name === '팀 프로젝트')?.categoryId;
+  const categoryId = form.categoryId || (room && teamProjectId ? String(teamProjectId) : '');
+  const maxRecruit = room?.maxTeamSize ? room.maxTeamSize - 1 : 100;
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-    if (!form.categoryId) return setError('카테고리를 선택해 주세요.');
+    if (!categoryId) return setError('카테고리를 선택해 주세요.');
     if (!form.title.trim()) return setError('제목을 입력해 주세요.');
     if (!form.content.trim()) return setError('내용을 입력해 주세요.');
 
-    const body = { ...form, categoryId: Number(form.categoryId), recruitCount: Number(form.recruitCount) };
+    if (Number(form.recruitCount) > maxRecruit) {
+      return setError(`이 방의 팀 최대 인원은 ${room.maxTeamSize}명(작성자 포함)이라 모집 인원은 ${maxRecruit}명까지 가능합니다.`);
+    }
+    const body = {
+      ...form,
+      categoryId: Number(categoryId),
+      recruitCount: Number(form.recruitCount),
+      isAnonymous: room ? false : form.isAnonymous,
+      ...(!isEdit && room && { roomId: room.roomId }),
+    };
     setBusy(true);
     try {
       const saved = isEdit ? await api.put(`/api/posts/${id}`, body) : await api.post('/api/posts', body);
@@ -86,12 +116,18 @@ export default function PostFormPage() {
   return (
     <div className="card form-card">
       <h1>{isEdit ? '게시글 수정' : '모집 글쓰기'}</h1>
+      {room && (
+        <p className="notice small">
+          <strong>{room.name}</strong> 방에 올리는 글입니다. 방 참여자에게만 보이며, 익명으로 쓸 수 없습니다.
+          {room.maxTeamSize && ` 팀 최대 인원이 ${room.maxTeamSize}명(작성자 포함)이라 모집 인원은 ${maxRecruit}명까지 가능합니다.`}
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="form">
         <label>
           <span>
             카테고리 <span className="required">*</span>
           </span>
-          <select value={form.categoryId} onChange={update('categoryId')} required>
+          <select value={categoryId} onChange={update('categoryId')} required>
             <option value="">선택해 주세요</option>
             {categories.map((c) => (
               <option key={c.categoryId} value={c.categoryId}>
@@ -111,7 +147,7 @@ export default function PostFormPage() {
             <span>
               모집 인원 <span className="required">*</span>
             </span>
-            <input type="number" min={1} max={100} value={form.recruitCount} onChange={update('recruitCount')} required />
+            <input type="number" min={1} max={maxRecruit} value={form.recruitCount} onChange={update('recruitCount')} required />
           </label>
           <label>
             마감일
@@ -148,15 +184,17 @@ export default function PostFormPage() {
             원활해집니다. 안전을 위해 이 두 가지 링크만 넣을 수 있습니다.
           </span>
         </label>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={form.isAnonymous}
-            onChange={(e) => setForm({ ...form, isAnonymous: e.target.checked })}
-          />
-          익명으로 올리기
-          <span className="muted small">(이름 대신 "익명"으로 표시되며, 학과는 공개됩니다)</span>
-        </label>
+        {!room && (
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={form.isAnonymous}
+              onChange={(e) => setForm({ ...form, isAnonymous: e.target.checked })}
+            />
+            익명으로 올리기
+            <span className="muted small">(이름 대신 "익명"으로 표시되며, 학과는 공개됩니다)</span>
+          </label>
+        )}
         <div className="actions">
           <button type="submit" disabled={busy}>
             {busy ? '저장 중…' : isEdit ? '저장하기' : '등록하기'}

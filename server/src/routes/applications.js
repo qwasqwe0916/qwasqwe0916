@@ -3,7 +3,9 @@ import { pool } from '../db.js';
 import { requireUser } from '../middleware/auth.js';
 import { getUserSkills } from '../skills.js';
 import { getPublicProfile } from '../profiles.js';
-import { findPost, today } from './posts.js';
+import { loadVisiblePost } from './posts.js';
+import { today } from '../dates.js';
+import { checkRoomParticipation, getTeamInRoom } from '../rooms.js';
 
 const router = Router();
 const MAX_MESSAGE = 300;
@@ -11,11 +13,16 @@ const DECISIONS = ['PENDING', 'ACCEPTED', 'REJECTED'];
 
 // 지원하기 (R16 모집중만, R17 한 번만, R18 본인 글 불가, 마감일이 지난 글 불가)
 router.post('/posts/:id/applications', requireUser, async (req, res) => {
-  const post = await findPost(req.params.id);
-  if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
+  const post = await loadVisiblePost(req, res);
+  if (!post) return;
   if (post.user_id === req.user.user_id) return res.status(400).json({ message: '본인이 작성한 글에는 지원할 수 없습니다.' });
   if (post.status !== 'OPEN') return res.status(400).json({ message: '모집이 완료된 글입니다.' });
   if (post.deadline && post.deadline < today()) return res.status(400).json({ message: '마감일이 지난 글입니다.' });
+  // 방 글: 관리자 편성 여부, 팀 구성 마감일, 이미 이 방에서 팀에 소속됐는지 (R32, R33)
+  if (post.room_id) {
+    const check = await checkRoomParticipation(post.room_id, req.user.user_id);
+    if (!check.membership) return res.status(check.status).json({ message: check.message });
+  }
 
   const message = String(req.body?.message ?? '').trim() || null;
   if (message && message.length > MAX_MESSAGE) {
@@ -38,8 +45,8 @@ router.post('/posts/:id/applications', requireUser, async (req, res) => {
 
 // 지원자 목록 (R20: 글 작성자만). 지원자의 이름, 학과, GitHub, 보유 기술 스택 전체를 함께 보여준다
 router.get('/posts/:id/applications', requireUser, async (req, res) => {
-  const post = await findPost(req.params.id);
-  if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
+  const post = await loadVisiblePost(req, res);
+  if (!post) return;
   if (post.user_id !== req.user.user_id) return res.status(403).json({ message: '작성자만 지원자 목록을 볼 수 있습니다.' });
 
   const [rows] = await pool.query(
@@ -73,7 +80,8 @@ router.patch('/applications/:id', requireUser, async (req, res) => {
   if (!DECISIONS.includes(status)) return res.status(400).json({ message: '올바르지 않은 지원 상태입니다.' });
 
   const [rows] = await pool.query(
-    `SELECT a.application_id, a.status, p.post_id, p.user_id AS post_owner, p.recruit_count, p.team_formed_at
+    `SELECT a.application_id, a.status, a.user_id AS applicant_id,
+            p.post_id, p.user_id AS post_owner, p.recruit_count, p.team_formed_at, p.room_id
      FROM applications a JOIN posts p ON p.post_id = a.post_id
      WHERE a.application_id = ?`,
     [req.params.id]
@@ -90,6 +98,10 @@ router.patch('/applications/:id', requireUser, async (req, res) => {
     );
     if (accepted >= app.recruit_count) {
       return res.status(400).json({ message: `모집 인원(${app.recruit_count}명)이 모두 찼습니다.` });
+    }
+    // 방 글: 이미 이 방에서 다른 팀에 소속된 사람은 수락할 수 없다 (R33)
+    if (app.room_id && (await getTeamInRoom(app.room_id, app.applicant_id))) {
+      return res.status(400).json({ message: '이 지원자는 이미 이 방에서 다른 팀에 소속되어 있습니다.' });
     }
   }
 
@@ -129,15 +141,16 @@ router.delete('/applications/:id', requireUser, async (req, res) => {
 router.get('/me/posts', requireUser, async (req, res) => {
   const [rows] = await pool.query(
     `SELECT p.post_id, p.title, p.status, p.recruit_count, p.deadline, p.is_anonymous, p.team_formed_at, p.created_at,
-            c.name AS category_name,
+            c.name AS category_name, r.room_id, r.name AS room_name,
             COUNT(a.application_id) AS total,
             COALESCE(SUM(a.status = 'PENDING'), 0) AS pending,
             COALESCE(SUM(a.status = 'ACCEPTED'), 0) AS accepted
      FROM posts p
      JOIN categories c ON c.category_id = p.category_id
+     LEFT JOIN rooms r ON r.room_id = p.room_id
      LEFT JOIN applications a ON a.post_id = p.post_id
      WHERE p.user_id = ?
-     GROUP BY p.post_id, c.name
+     GROUP BY p.post_id, c.name, r.room_id
      ORDER BY p.created_at DESC, p.post_id DESC`,
     [req.user.user_id]
   );
@@ -152,6 +165,7 @@ router.get('/me/posts', requireUser, async (req, res) => {
       teamFormed: Boolean(row.team_formed_at),
       createdAt: row.created_at,
       category: row.category_name,
+      room: row.room_id ? { roomId: row.room_id, name: row.room_name } : null,
       applications: { total: Number(row.total), pending: Number(row.pending), accepted: Number(row.accepted) },
     }))
   );
@@ -162,11 +176,12 @@ router.get('/me/applications', requireUser, async (req, res) => {
   const [rows] = await pool.query(
     `SELECT a.application_id, a.status, a.message, a.applied_at,
             p.post_id, p.title, p.status AS post_status, p.is_anonymous, p.team_formed_at,
-            c.name AS category_name,
+            c.name AS category_name, r.room_id, r.name AS room_name,
             u.name AS author_name, u.department AS author_department, u.github_url AS author_github
      FROM applications a
      JOIN posts p      ON p.post_id = a.post_id
      JOIN categories c ON c.category_id = p.category_id
+     LEFT JOIN rooms r ON r.room_id = p.room_id
      JOIN users u      ON u.user_id = p.user_id
      WHERE a.user_id = ?
      ORDER BY a.applied_at DESC, a.application_id DESC`,
@@ -182,7 +197,13 @@ router.get('/me/applications', requireUser, async (req, res) => {
         message: row.message,
         appliedAt: row.applied_at,
         teamFormed: Boolean(row.team_formed_at),
-        post: { postId: row.post_id, title: row.title, status: row.post_status, category: row.category_name },
+        post: {
+          postId: row.post_id,
+          title: row.title,
+          status: row.post_status,
+          category: row.category_name,
+          room: row.room_id ? { roomId: row.room_id, name: row.room_name } : null,
+        },
         author: showRealName
           ? {
               anonymous: false,

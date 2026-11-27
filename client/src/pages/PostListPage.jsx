@@ -7,8 +7,9 @@ import SkillTags from '../components/SkillTags';
 import { STATUS_LABELS, formatDate, formatDeadline } from '../lib/format';
 import { useAuth } from '../auth/AuthContext';
 
-// 메인: 모집 게시글 목록 (카테고리 탭, 모집중만 보기)
-export default function PostListPage() {
+// 모집 게시글 목록 (카테고리 탭, 모집중만 보기)
+// room이 없으면 전체 게시판, 있으면 그 방의 게시판 (방 화면 안에서 사용)
+export default function PostListPage({ room = null }) {
   const { profile } = useAuth();
   const categories = useOptions('/api/categories');
   const skillOptions = useOptions('/api/skills');
@@ -18,7 +19,9 @@ export default function PostListPage() {
   const selectedSkills = (searchParams.get('skills') ?? '').split(',').filter(Boolean).map(Number);
 
   const [result, setResult] = useState({ key: null, posts: [], error: '' });
-  const key = searchParams.toString();
+  const query = new URLSearchParams(searchParams);
+  if (room) query.set('room', room.roomId);
+  const key = query.toString();
 
   useEffect(() => {
     let cancelled = false;
@@ -41,11 +44,13 @@ export default function PostListPage() {
   const loading = result.key !== key;
 
   return (
-    <div className="card">
+    <div className={room ? '' : 'card'}>
       <div className="title-row">
-        <h1>모집 게시판</h1>
-        {profile ? (
-          <Link to="/posts/new" className="button">
+        {room ? <h2>방 게시판</h2> : <h1>모집 게시판</h1>}
+        {room && !room.canWrite ? (
+          <span className="muted small">{room.writeBlockedReason}</span>
+        ) : profile ? (
+          <Link to={room ? `/posts/new?room=${room.roomId}` : '/posts/new'} className="button">
             글쓰기
           </Link>
         ) : (

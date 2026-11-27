@@ -9,6 +9,8 @@ import PostFormPage from './pages/PostFormPage';
 import AuthorProfilePage from './pages/AuthorProfilePage';
 import MyPage from './pages/MyPage';
 import TeamPage from './pages/TeamPage';
+import RoomsPage from './pages/RoomsPage';
+import RoomPage from './pages/RoomPage';
 
 function Header() {
   const { session, profile, signOut } = useAuth();
@@ -20,6 +22,7 @@ function Header() {
       <nav>
         {session ? (
           <>
+            {profile && <Link to="/rooms">내 방</Link>}
             {profile && <Link to="/mypage">마이페이지</Link>}
             {profile && <Link to="/profile">프로필</Link>}
             <button type="button" className="link" onClick={() => signOut()}>
@@ -68,6 +71,8 @@ export default function App() {
         <Route path="/posts/:id/team" element={session ? <TeamPage /> : <Navigate to="/login" replace />} />
         <Route path="/posts/:id/edit" element={session ? <PostFormPage key="edit" /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginPage />} />
+        <Route path="/rooms" element={session ? <RoomsPage /> : <Navigate to="/login" replace />} />
+        <Route path="/rooms/:id" element={session ? <RoomPage /> : <Navigate to="/login" replace />} />
         <Route path="/mypage" element={session ? <MyPage /> : <Navigate to="/login" replace />} />
         <Route
           path="/profile/setup"

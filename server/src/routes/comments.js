@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireUser } from '../middleware/auth.js';
 import { getPublicProfile } from '../profiles.js';
-import { findPost } from './posts.js';
+import { loadVisiblePost } from './posts.js';
 
 const router = Router();
 const MAX_LENGTH = 1000;
@@ -56,22 +56,23 @@ async function loadComments(post) {
 
 // 댓글 목록 (누구나)
 router.get('/posts/:id/comments', async (req, res) => {
-  const post = await findPost(req.params.id);
-  if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
+  const post = await loadVisiblePost(req, res);
+  if (!post) return;
   res.json(toComments(await loadComments(post), post, req.user));
 });
 
 // 댓글 작성 (R13). 응답으로 갱신된 댓글 목록을 돌려준다 (익명 번호가 목록 기준으로 정해지므로)
 router.post('/posts/:id/comments', requireUser, async (req, res) => {
-  const post = await findPost(req.params.id);
-  if (!post) return res.status(404).json({ message: '게시글을 찾을 수 없습니다.' });
+  const post = await loadVisiblePost(req, res);
+  if (!post) return;
 
   const content = String(req.body?.content ?? '').trim();
   if (!content) return res.status(400).json({ message: '댓글 내용을 입력해 주세요.' });
   if (content.length > MAX_LENGTH) return res.status(400).json({ message: `댓글은 ${MAX_LENGTH}자 이하로 입력해 주세요.` });
 
   const forced = post.is_anonymous && post.user_id === req.user.user_id;
-  const isAnonymous = forced || req.body?.isAnonymous === true;
+  // 방 글에서는 익명 댓글을 쓸 수 없다 (R31)
+  const isAnonymous = !post.room_id && (forced || req.body?.isAnonymous === true);
   await pool.query('INSERT INTO comments (post_id, user_id, content, is_anonymous) VALUES (?, ?, ?, ?)', [
     post.post_id,
     req.user.user_id,
@@ -100,7 +101,8 @@ router.get('/comments/:id/author', async (req, res) => {
   const comment = rows[0];
   if (!comment) return res.status(404).json({ message: '댓글을 찾을 수 없습니다.' });
 
-  const post = await findPost(comment.post_id);
+  const post = await loadVisiblePost(req, res, comment.post_id);
+  if (!post) return;
   const shown = toComments(await loadComments(post), post, null).find((c) => c.commentId === comment.comment_id);
   const profile = await getPublicProfile(comment.user_id, {
     anonymous: shown.author.anonymous,

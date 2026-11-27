@@ -55,3 +55,15 @@ INSERT INTO applications (post_id, user_id, status, message) VALUES
   (1, 2, 'PENDING',  'React로 프로젝트 경험이 있습니다.'),
   (1, 3, 'ACCEPTED', '디자인 담당으로 지원합니다.'),
   (2, 2, 'REJECTED', NULL);
+
+-- 방 1개: 김작성(관리자)이 만든 수업 방, 이지원·박지원 참여 (참여 코드 DBTP26)
+INSERT INTO rooms (name, description, join_code, min_team_size, max_team_size, team_deadline, created_by) VALUES
+  ('데이터베이스 텀프로젝트 (샘플)', '3~4명으로 팀을 구성해 주세요.', 'DBTP26', 3, 4, '2026-12-20', 1);
+INSERT INTO room_members (room_id, user_id, role) VALUES
+  (1, 1, 'MANAGER'), (1, 2, 'MEMBER'), (1, 3, 'MEMBER');
+
+-- 방 안의 모집글 (이지원 작성)
+INSERT INTO posts (user_id, room_id, category_id, title, content, recruit_count) VALUES
+  (2, 1, (SELECT category_id FROM categories WHERE name = '팀 프로젝트'),
+   '도서관 좌석 예약 DB 만들 팀원 구해요', '백엔드 1명, 프론트 1명 구합니다.', 3);
+
