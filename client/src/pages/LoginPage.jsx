@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 const ALLOWED_EMAIL_DOMAIN = '@seoultech.ac.kr';
+// 메일 주소의 @ 앞부분에 쓸 수 있는 문자
+const LOCAL_PART_PATTERN = /^[a-z0-9._%+-]+$/;
 
 // 학교 이메일 입력 → 인증번호 입력 → 로그인
 export default function LoginPage() {
   const [step, setStep] = useState('email');
-  const [email, setEmail] = useState('');
+  const [localPart, setLocalPart] = useState(''); // 사용자가 입력하는 @ 앞부분
+  const [email, setEmail] = useState(''); // 인증번호를 보낸 전체 주소
   const [code, setCode] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -14,13 +17,24 @@ export default function LoginPage() {
 
   async function sendCode(e) {
     e?.preventDefault();
-    const trimmed = email.trim().toLowerCase();
     setError('');
     setMessage('');
-    if (!trimmed.endsWith(ALLOWED_EMAIL_DOMAIN)) {
-      setError(`교내 이메일(${ALLOWED_EMAIL_DOMAIN})만 사용할 수 있습니다.`);
+    // 사용자는 @ 앞부분만 입력하고, 도메인은 @seoultech.ac.kr로 고정한다
+    let id = localPart.trim().toLowerCase();
+    if (id.endsWith(ALLOWED_EMAIL_DOMAIN)) id = id.slice(0, -ALLOWED_EMAIL_DOMAIN.length);
+    if (!id) {
+      setError('학교 메일 아이디를 입력해 주세요.');
       return;
     }
+    if (id.includes('@')) {
+      setError(`@ 뒤는 입력하지 않아도 됩니다. 아이디만 입력하면 자동으로 ${ALLOWED_EMAIL_DOMAIN}이 붙습니다.`);
+      return;
+    }
+    if (!LOCAL_PART_PATTERN.test(id)) {
+      setError('아이디에는 영문, 숫자와 . _ - + 만 쓸 수 있습니다.');
+      return;
+    }
+    const trimmed = id + ALLOWED_EMAIL_DOMAIN;
 
     setBusy(true);
     const { error } = await supabase.auth.signInWithOtp({
@@ -71,14 +85,22 @@ export default function LoginPage() {
         <form onSubmit={sendCode} className="form">
           <label>
             학교 이메일
-            <input
-              type="email"
-              placeholder={`학번 또는 아이디${ALLOWED_EMAIL_DOMAIN}`}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoFocus
-              required
-            />
+            <div className="email-input">
+              <input
+                type="text"
+                inputMode="email"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder="학번 또는 아이디"
+                value={localPart}
+                // 전체 주소를 붙여넣어도 도메인 부분은 자동으로 떼어 낸다
+                onChange={(e) => setLocalPart(e.target.value.replace(/@seoultech\.ac\.kr$/i, ''))}
+                autoFocus
+                required
+              />
+              <span className="email-domain">{ALLOWED_EMAIL_DOMAIN}</span>
+            </div>
           </label>
           <button type="submit" disabled={busy}>
             {busy ? '보내는 중…' : '인증번호 받기'}
