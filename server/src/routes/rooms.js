@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { randomInt } from 'node:crypto';
 import { pool } from '../db.js';
 import { requireUser } from '../middleware/auth.js';
-import { getMembership, getTeamInRoom, isRoomDeadlinePassed } from '../rooms.js';
+import { canParticipate, getMembership, getTeamInRoom, isRoomDeadlinePassed } from '../rooms.js';
 
 const router = Router();
 // 헷갈리기 쉬운 글자(0, O, 1, I)를 뺀 참여 코드용 문자
@@ -30,7 +30,6 @@ function validateRoom(body) {
   const minTeamSize = toSize(body.minTeamSize);
   const maxTeamSize = toSize(body.maxTeamSize);
   const teamDeadline = body.teamDeadline ? String(body.teamDeadline) : null;
-  const managerInPool = body.managerInPool === true;
 
   if (!name) return { error: '방 이름을 입력해 주세요.' };
   if (name.length > 100) return { error: '방 이름은 100자 이하로 입력해 주세요.' };
@@ -44,7 +43,7 @@ function validateRoom(body) {
   if (teamDeadline && (!/^\d{4}-\d{2}-\d{2}$/.test(teamDeadline) || Number.isNaN(Date.parse(teamDeadline)))) {
     return { error: '마감일 형식이 올바르지 않습니다.' };
   }
-  return { value: { name, description, minTeamSize, maxTeamSize, teamDeadline, managerInPool } };
+  return { value: { name, description, minTeamSize, maxTeamSize, teamDeadline } };
 }
 
 function toRoom(row, { withCode = false } = {}) {
@@ -56,7 +55,6 @@ function toRoom(row, { withCode = false } = {}) {
     maxTeamSize: row.max_team_size,
     teamDeadline: row.team_deadline,
     isDeadlinePassed: isRoomDeadlinePassed(row),
-    managerInPool: Boolean(row.manager_in_pool),
     createdAt: row.created_at,
     ...(withCode && { joinCode: row.join_code }),
   };
@@ -86,9 +84,9 @@ router.post('/rooms', requireUser, async (req, res) => {
     await conn.beginTransaction();
     const code = await uniqueCode(conn);
     const [result] = await conn.query(
-      `INSERT INTO rooms (name, description, join_code, min_team_size, max_team_size, team_deadline, manager_in_pool, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [value.name, value.description, code, value.minTeamSize, value.maxTeamSize, value.teamDeadline, value.managerInPool, req.user.user_id]
+      `INSERT INTO rooms (name, description, join_code, min_team_size, max_team_size, team_deadline, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [value.name, value.description, code, value.minTeamSize, value.maxTeamSize, value.teamDeadline, req.user.user_id]
     );
     await conn.query("INSERT INTO room_members (room_id, user_id, role) VALUES (?, ?, 'MANAGER')", [
       result.insertId,
@@ -152,7 +150,7 @@ router.get('/rooms/:id', requireUser, async (req, res) => {
     role: membership.role,
     managerName: creator?.name ?? null,
     memberCount: Number(count),
-    canParticipate: membership.role !== 'MANAGER' || Boolean(membership.manager_in_pool),
+    canParticipate: canParticipate(membership),
     myTeam: await getTeamInRoom(membership.room_id, req.user.user_id),
   });
 });
@@ -164,9 +162,9 @@ router.put('/rooms/:id', requireUser, async (req, res) => {
   const { error, value } = validateRoom(req.body ?? {});
   if (error) return res.status(400).json({ message: error });
   await pool.query(
-    `UPDATE rooms SET name = ?, description = ?, min_team_size = ?, max_team_size = ?, team_deadline = ?, manager_in_pool = ?
+    `UPDATE rooms SET name = ?, description = ?, min_team_size = ?, max_team_size = ?, team_deadline = ?
      WHERE room_id = ?`,
-    [value.name, value.description, value.minTeamSize, value.maxTeamSize, value.teamDeadline, value.managerInPool, membership.room_id]
+    [value.name, value.description, value.minTeamSize, value.maxTeamSize, value.teamDeadline, membership.room_id]
   );
   res.json({ ok: true });
 });
@@ -245,12 +243,12 @@ async function loadStatus(room) {
      ORDER BY team_formed_at, post_id, role, name`,
     [room.room_id, room.room_id]
   );
-  // 미편성: 방 참여자 중 어떤 팀에도 없는 사람 (편성 대상이 아닌 관리자는 제외)
+  // 미편성: 방 참여자(관리자 제외) 중 어떤 팀에도 없는 사람
   const [unassigned] = await pool.query(
     `SELECT u.user_id, u.name, u.department, u.email
      FROM room_members m JOIN users u ON u.user_id = m.user_id
      WHERE m.room_id = ?
-       AND (m.role = 'MEMBER' OR ? = TRUE)
+       AND m.role = 'MEMBER'
        AND NOT EXISTS (
          SELECT 1 FROM posts p
          WHERE p.room_id = m.room_id AND p.team_formed_at IS NOT NULL
@@ -258,7 +256,7 @@ async function loadStatus(room) {
                 OR EXISTS (SELECT 1 FROM applications a
                            WHERE a.post_id = p.post_id AND a.user_id = m.user_id AND a.status = 'ACCEPTED')))
      ORDER BY u.name`,
-    [room.room_id, Boolean(room.manager_in_pool)]
+    [room.room_id]
   );
 
   const grouped = [];
@@ -285,8 +283,8 @@ router.get('/rooms/:id/status', requireUser, async (req, res) => {
   if (!membership) return;
   const status = await loadStatus(membership);
   const [[{ pool: poolSize }]] = await pool.query(
-    "SELECT COUNT(*) AS pool FROM room_members WHERE room_id = ? AND (role = 'MEMBER' OR ? = TRUE)",
-    [membership.room_id, Boolean(membership.manager_in_pool)]
+    "SELECT COUNT(*) AS pool FROM room_members WHERE room_id = ? AND role = 'MEMBER'",
+    [membership.room_id]
   );
   res.json({ ...status, totalParticipants: Number(poolSize), minTeamSize: membership.min_team_size });
 });

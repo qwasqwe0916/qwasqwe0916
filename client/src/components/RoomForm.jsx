@@ -8,7 +8,6 @@ export default function RoomForm({ initial, submitLabel, onSubmit, onCancel }) {
     minTeamSize: initial?.minTeamSize ?? '',
     maxTeamSize: initial?.maxTeamSize ?? '',
     teamDeadline: initial?.teamDeadline ?? '',
-    managerInPool: initial?.managerInPool ?? false,
   });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -58,11 +57,7 @@ export default function RoomForm({ initial, submitLabel, onSubmit, onCancel }) {
         <input type="date" value={form.teamDeadline} onChange={update('teamDeadline')} />
         <span className="muted small hint-text">마감일이 지나면 새 모집글과 지원은 막히고, 이미 수락이 끝난 글의 팀 구성만 할 수 있습니다.</span>
       </label>
-      <label className="checkbox">
-        <input type="checkbox" checked={form.managerInPool} onChange={(e) => setForm({ ...form, managerInPool: e.target.checked })} />
-        나(관리자)도 팀 편성 대상에 포함
-        <span className="muted small">(학생 대표라면 체크, 교수님이라면 체크하지 않음)</span>
-      </label>
+      <p className="muted small hint">방을 만든 사람은 관리자가 되며, 팀 편성에는 참여하지 않습니다. (방 글에 댓글은 쓸 수 있습니다)</p>
       <div className="actions">
         <button type="submit" disabled={busy}>
           {busy ? '저장 중…' : submitLabel}

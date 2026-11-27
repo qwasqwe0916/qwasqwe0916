@@ -41,7 +41,7 @@ export default function RoomPage() {
   const reload = () => setVersion((v) => v + 1);
 
   let writeBlockedReason = '';
-  if (!room.canParticipate) writeBlockedReason = '관리자는 팀 편성에 참여하지 않도록 설정되어 있습니다.';
+  if (!room.canParticipate) writeBlockedReason = '관리자는 팀 편성에 참여하지 않아 글을 쓸 수 없습니다.';
   else if (room.myTeam) writeBlockedReason = '이미 이 방에서 팀에 소속되어 있습니다.';
   else if (room.isDeadlinePassed) writeBlockedReason = '팀 구성 마감일이 지나 새 모집글을 쓸 수 없습니다.';
 

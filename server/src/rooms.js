@@ -30,9 +30,9 @@ export async function getTeamInRoom(roomId, userId, conn = pool) {
   return { postId: rows[0].post_id, title: rows[0].title, isLeader: Boolean(rows[0].is_leader) };
 }
 
-// 관리자가 팀 편성 대상에서 빠진 방이면 글쓰기·지원을 할 수 없다
+// 관리자는 팀 편성에 참여하지 않으므로 방 안에서 글쓰기·지원을 할 수 없다 (댓글은 가능)
 export function canParticipate(membership) {
-  return membership.role !== 'MANAGER' || Boolean(membership.manager_in_pool);
+  return membership.role !== 'MANAGER';
 }
 
 export function isRoomDeadlinePassed(room) {
@@ -43,7 +43,7 @@ export function isRoomDeadlinePassed(room) {
 export async function checkRoomParticipation(roomId, userId) {
   const membership = await getMembership(roomId, userId);
   if (!membership) return { status: 403, message: '방 참여자만 할 수 있습니다.' };
-  if (!canParticipate(membership)) return { status: 403, message: '이 방의 관리자는 팀 편성에 참여하지 않습니다.' };
+  if (!canParticipate(membership)) return { status: 403, message: '방 관리자는 팀 편성에 참여하지 않습니다.' };
   if (isRoomDeadlinePassed(membership)) return { status: 400, message: '팀 구성 마감일이 지난 방입니다.' };
   if (await getTeamInRoom(roomId, userId)) return { status: 400, message: '이미 이 방에서 팀에 소속되어 있습니다.' };
   return { membership };

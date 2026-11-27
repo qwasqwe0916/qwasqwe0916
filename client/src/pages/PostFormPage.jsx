@@ -79,7 +79,7 @@ export default function PostFormPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-    if (!categoryId) return setError('카테고리를 선택해 주세요.');
+    if (!room && !categoryId) return setError('카테고리를 선택해 주세요.');
     if (!form.title.trim()) return setError('제목을 입력해 주세요.');
     if (!form.content.trim()) return setError('내용을 입력해 주세요.');
 
@@ -118,24 +118,28 @@ export default function PostFormPage() {
       <h1>{isEdit ? '게시글 수정' : '모집 글쓰기'}</h1>
       {room && (
         <p className="notice small">
-          <strong>{room.name}</strong> 방에 올리는 글입니다. 방 참여자에게만 보이며, 익명으로 쓸 수 없습니다.
+          <strong>{room.name}</strong> 방에 올리는 글입니다. 방 참여자에게만 보이며, 카테고리는 "팀 프로젝트"로 정해지고
+          익명으로 쓸 수 없습니다.
           {room.maxTeamSize && ` 팀 최대 인원이 ${room.maxTeamSize}명(작성자 포함)이라 모집 인원은 ${maxRecruit}명까지 가능합니다.`}
         </p>
       )}
       <form onSubmit={handleSubmit} className="form">
-        <label>
-          <span>
-            카테고리 <span className="required">*</span>
-          </span>
-          <select value={categoryId} onChange={update('categoryId')} required>
-            <option value="">선택해 주세요</option>
-            {categories.map((c) => (
-              <option key={c.categoryId} value={c.categoryId}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* 방 글은 카테고리가 "팀 프로젝트"로 고정되어 선택칸을 보여주지 않는다 */}
+        {!room && (
+          <label>
+            <span>
+              카테고리 <span className="required">*</span>
+            </span>
+            <select value={categoryId} onChange={update('categoryId')} required>
+              <option value="">선택해 주세요</option>
+              {categories.map((c) => (
+                <option key={c.categoryId} value={c.categoryId}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           <span>
             제목 <span className="required">*</span>

@@ -61,6 +61,8 @@ export default function PostListPage({ room = null }) {
       </div>
 
       <div className="filters">
+        {/* 방 글은 모두 "팀 프로젝트"라 방 게시판에서는 카테고리 탭을 보여주지 않는다 */}
+        {!room && (
         <div className="tabs">
           <button type="button" className={category === '' ? 'tab active' : 'tab'} onClick={() => updateFilter('category', '')}>
             전체
@@ -76,6 +78,7 @@ export default function PostListPage({ room = null }) {
             </button>
           ))}
         </div>
+        )}
         <label className="checkbox">
           <input type="checkbox" checked={openOnly} onChange={(e) => updateFilter('status', e.target.checked ? 'OPEN' : '')} />
           모집중만 보기
@@ -104,7 +107,7 @@ export default function PostListPage({ room = null }) {
             <li key={post.postId}>
               <Link to={`/posts/${post.postId}`} className="post-item">
                 <div className="badges">
-                  <span className="badge">{post.category.name}</span>
+                  {!room && <span className="badge">{post.category.name}</span>}
                   <span className={`badge status-${post.status}`}>{STATUS_LABELS[post.status]}</span>
                 </div>
                 <strong className="post-title">{post.title}</strong>

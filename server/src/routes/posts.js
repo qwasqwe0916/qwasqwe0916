@@ -232,6 +232,12 @@ function applyRoomRules(value, maxTeamSize) {
   return '';
 }
 
+// 방 글의 카테고리는 항상 "팀 프로젝트" (R31)
+async function teamProjectCategoryId() {
+  const [rows] = await pool.query("SELECT category_id FROM categories WHERE name = '팀 프로젝트'");
+  return rows[0]?.category_id;
+}
+
 async function categoryExists(categoryId) {
   const [rows] = await pool.query('SELECT 1 FROM categories WHERE category_id = ?', [categoryId]);
   return rows.length > 0;
@@ -308,6 +314,8 @@ router.get('/:id/author', async (req, res) => {
 
 // 게시글 작성 (R5, R7)
 router.post('/', requireUser, async (req, res) => {
+  const isRoomPost = req.body?.roomId !== undefined && req.body?.roomId !== null && req.body?.roomId !== '';
+  if (isRoomPost) req.body.categoryId = await teamProjectCategoryId();
   const { error, value } = validatePost(req.body ?? {});
   if (error) return res.status(400).json({ message: error });
   if (!(await categoryExists(value.categoryId))) return res.status(400).json({ message: '존재하지 않는 카테고리입니다.' });
@@ -316,7 +324,7 @@ router.post('/', requireUser, async (req, res) => {
 
   // 방 글이면 참여자·관리자 편성 여부·마감일·이미 팀 소속인지 검사 (R30 ~ R33)
   let roomId = null;
-  if (req.body?.roomId !== undefined && req.body?.roomId !== null && req.body?.roomId !== '') {
+  if (isRoomPost) {
     roomId = Number(req.body.roomId);
     const check = Number.isInteger(roomId) ? await checkRoomParticipation(roomId, req.user.user_id) : { status: 400, message: '방 정보가 올바르지 않습니다.' };
     if (!check.membership) return res.status(check.status).json({ message: check.message });
@@ -332,6 +340,7 @@ router.post('/', requireUser, async (req, res) => {
 router.put('/:id', requireUser, async (req, res) => {
   const post = await loadOwnPost(req, res);
   if (!post) return;
+  if (post.room_id && req.body) req.body.categoryId = await teamProjectCategoryId();
   const { error, value } = validatePost(req.body ?? {});
   if (error) return res.status(400).json({ message: error });
   if (!(await categoryExists(value.categoryId))) return res.status(400).json({ message: '존재하지 않는 카테고리입니다.' });
